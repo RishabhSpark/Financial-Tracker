@@ -13,8 +13,6 @@ logger:
     file:
       enabled: true
       level: INFO
-      max_bytes: 5000000   # 5 MB
-      backup_count: 3
 
   format:
     pattern: "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"

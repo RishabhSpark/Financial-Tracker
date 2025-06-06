@@ -3,6 +3,10 @@ import logging.handlers
 import os
 import yaml
 
+import logging
+import os
+import yaml
+
 def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Logger:
     # Load YAML config
     with open(yaml_path, 'r') as f:
@@ -33,7 +37,7 @@ def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Lo
     logger.setLevel(level)
     logger.propagate = False  # Avoid duplicate logs if root logger configured
 
-    # Clear existing handlers if any (useful if re-calling)
+    # Clear existing handlers if any
     if logger.hasHandlers():
         logger.handlers.clear()
 
@@ -55,13 +59,10 @@ def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Lo
     if file_cfg.get('enabled', False):
         file_level_name = file_cfg.get('level', level_name)
         file_level = getattr(logging, file_level_name.upper(), level)
-        max_bytes = file_cfg.get('max_bytes', 5_000_000)
-        backup_count = file_cfg.get('backup_count', 3)
         file_path = os.path.join(log_dir, file_name)
-        fh = logging.handlers.RotatingFileHandler(
+        fh = logging.FileHandler(
             filename=file_path,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
+            mode='a', 
             encoding='utf-8'
         )
         fh.setLevel(file_level)
