@@ -1,0 +1,12 @@
+{
+  "client_name": "Nimbus Holdings Inc.",
+  "po_id": "PO-3425",
+  "amount": "16400",
+  "status": "Active",
+  "payment_terms": "- 50% on project start\n- 30% after first milestone\n- 20% upon completion",
+  "payment_type": "milestone",
+  "start_date": "June 10, 2025",
+  "end_date": null,
+  "duration": null,
+  "payment_divisions": {}
+}
