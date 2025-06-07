@@ -1,0 +1,19 @@
+{
+  "client_name": "Fiona Inc",
+  "po_id": "34523",
+  "amount": 80000.0,
+  "status": "Confirmed",
+  "payment_terms": 30,
+  "payment_type": "periodic",
+  "start_date": "01-04-2025",
+  "end_date": "31-12-2025",
+  "duration_months": null,
+  "payment_schedule": {
+    "frequency": "quarterly",
+    "distribution": [
+      0.2,
+      0.4,
+      0.4
+    ]
+  }
+}

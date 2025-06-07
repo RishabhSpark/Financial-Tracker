@@ -32,7 +32,7 @@ Required fields:
 - duration_months: Duration in months if mentioned explicitly, else null. Should be a float. Do NOT calculate from dates.
 - payment_schedule: 
     For "milestone": An array of objects, each with:
-        - name: milestone name (string)
+        - name: milestone name (string). If not specified name them "initial", "milestone_1", "milestone_2", ...; or if initial not mentioned then start from "milestone_1", "milestone_2", ...
         - percentage: payment percentage as decimal (e.g., 0.2 for 20%)
         - expected_date: optional, payment date in DD-MM-YYYY format if available.
     For "distributed": An array of objects, each with:
@@ -42,7 +42,19 @@ Required fields:
         - frequency: payment frequency as string (e.g., "monthly", "quarterly")
         - distribution: array of decimals representing percentage distribution, summing to 1.
 
-Return JSON ONLY, no explanations or extra text.
+---
+Rules:
+1. Always return ONLY valid JSON. Do NOT add markdown, comments, explanations, or any extra text.
+2. Use double quotes for all JSON keys and string values.
+3. If a required field is missing or cannot be found, return null for that field.
+4. For optional fields, omit them if the information is not present.
+5. Dates must be strictly formatted as "DD-MM-YYYY". If incomplete date info is given (only month-year), convert according to the rules above.
+6. For payment percentages and distributions, use decimals (e.g., 0.25 for 25%), NOT percentages or strings.
+7. When naming milestones without explicit names, follow the sequence: "initial" first if present, then "milestone_1", "milestone_2", and so forth. If "initial" not mentioned then go with "milestone_1", "milestone_2", ...
+9. Payment status must exactly match one of the allowed strings.
+10. Validate that numeric fields like amount, payment_terms, percentage are proper numbers, not strings.
+
+Return ONLY the JSON.
 
 Here is the Purchase Order text:
 
