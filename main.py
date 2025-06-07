@@ -4,8 +4,8 @@ if __name__ == "__main__":
     pdf_list = ['input/rishabh_sample_po_1.pdf', 
                 'input/rishabh_sample_po_2.pdf',
                 'input/RT Test data-1.pdf', 
-                'input/RT Test data-1.pdf',
-                'input/RT Test data-1.pdf']
+                'input/RT Test data-2.pdf',
+                'input/RT Test data-3.pdf']
     
     for pdf_file in pdf_list:
         print(f"----------PDF File: {pdf_file} ------------")

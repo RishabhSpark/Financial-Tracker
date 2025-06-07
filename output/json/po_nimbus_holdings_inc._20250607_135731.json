@@ -1,0 +1,28 @@
+{
+  "client_name": "Nimbus Holdings Inc.",
+  "po_id": "PO-3425",
+  "amount": 16400.0,
+  "status": "Confirmed",
+  "payment_terms": 30,
+  "payment_type": "milestone",
+  "start_date": "10-06-2025",
+  "end_date": "30-09-2025",
+  "duration_months": 3,
+  "payment_schedule": [
+    {
+      "name": "project start",
+      "percentage": 0.5,
+      "expected_date": null
+    },
+    {
+      "name": "first milestone",
+      "percentage": 0.3,
+      "expected_date": null
+    },
+    {
+      "name": "completion",
+      "percentage": 0.2,
+      "expected_date": null
+    }
+  ]
+}
