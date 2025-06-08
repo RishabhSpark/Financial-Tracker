@@ -1,13 +1,20 @@
-if __name__ == "__main__":
-    from extractor.run_pipeline import run_pipeline
+from db.crud import insert_or_replace_po
+from db.database import init_db
+from extractor.run_extraction import run_pipeline
+from extractor.export import export_all_pos_json, export_all_csvs
 
-    pdf_list = ['input/rishabh_sample_po_1.pdf', 
-                'input/rishabh_sample_po_2.pdf',
-                'input/RT Test data-1.pdf', 
-                'input/RT Test data-2.pdf',
-                'input/RT Test data-3.pdf']
+if __name__ == "__main__":
+    init_db()
     
-    for pdf_file in pdf_list:
-        print(f"----------PDF File: {pdf_file} ------------")
-        text = run_pipeline(pdf_file)
-        print(text)
+    pdf_paths = [
+        "input/RT Test data-1.pdf",
+        "input/RT Test data-2.pdf",
+        "input/RT Test data-3.pdf"
+    ]
+    
+    for pdf_path in pdf_paths:
+        pdf_text = run_pipeline(pdf_path)
+        insert_or_replace_po(pdf_text)
+    
+    export_all_pos_json()
+    export_all_csvs()
