@@ -35,7 +35,7 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
 
     except FileNotFoundError:
         print(f"Error: The file at path {file_path} was not found. Cannot perform forecasting.")
-        return # Exit if the file isn't found
+        return
     except json.JSONDecodeError:
         print(f"Error: Could not decode JSON from {file_path}. Is it valid JSON? Cannot perform forecasting.")
         return
@@ -45,16 +45,16 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
 
     if all_forecast_dfs:
         combined_df = pd.concat(all_forecast_dfs, ignore_index=True)
-        # Drop duplicates based on the primary keys of your forecast entries
+
         combined_df.drop_duplicates(subset=["Client Name", "Month", "Inflow (USD)", "PO No"], keep="last", inplace=True)
     else:
         print("No forecast data generated. Skipping CSV and Excel output.")
-        return # Exit if no data to process
+        return 
 
     print("\n📊 Forecast Table:")
     print(combined_df)
 
-    # Handle CSV output
+   
     if os.path.exists(output_csv_path):
         existing_df = pd.read_csv(output_csv_path)
         combined_df = pd.concat([existing_df, combined_df], ignore_index=True)
@@ -63,7 +63,7 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
     combined_df.to_csv(output_csv_path, index=False)
     print(f"\n✅ Saved forecast table to '{output_csv_path}'")
 
-    # Handle Excel pivot output
+   
     pivot = combined_df.pivot_table(
         index=["Client Name", "PO No"],      
         columns="Month",                     

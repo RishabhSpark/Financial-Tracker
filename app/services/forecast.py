@@ -31,12 +31,12 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
         Dict[str, float]: A dictionary where keys are "YYYY-MM" and values are the
                           total inflow for that month.
     """
-    # Parse dates and handle potential missing keys
+   
     start = pd.to_datetime(data.get("start_date"), format="%d-%m-%Y", errors='coerce') if data.get("start_date") else None
     end = pd.to_datetime(data.get("end_date"), format="%d-%m-%Y", errors='coerce') if data.get("end_date") else None
     
     total = float(data.get("amount", 0.0))
-    pay_type = data.get("payment_type", "unknown").lower() # Ensure lowercase for comparison
+    pay_type = data.get("payment_type", "unknown").lower() 
 
     delay_days = int(data.get("payment_terms", 0))
 
@@ -72,17 +72,16 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
         milestones = data.get("milestones", [])
         num_milestones = len(milestones)
 
-        if not milestones: # No milestones to process
+        if not milestones: 
             return inflow
 
-        # Calculate inferred dates if due dates are not explicitly provided
+     
         inferred_dates = [None] * num_milestones
         if start and end and num_milestones > 0:
-            # Distribute dates evenly across the project duration if no explicit due dates
+           
             inferred_dates = pd.date_range(start=start, end=end, periods=num_milestones).tolist()
         elif start and num_milestones > 0:
-            # If only start, distribute quarterly or based on milestone count
-            # This is a simple fallback. More complex logic might be needed based on specific rules.
+           
             for i in range(num_milestones):
                 inferred_dates[i] = start + pd.DateOffset(months=(i * (12 // num_milestones))) if num_milestones <= 12 else start + pd.DateOffset(days=i * ((end - start).days / num_milestones if start and end else 30))
 
@@ -93,7 +92,7 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
                 percent = float(str(milestone["milestone_percentage"]).strip('%'))
                 amount = total * percent / 100
             else:
-                continue # Skip if no percentage specified
+                continue 
 
             pay_date = None
             if "milestone_due_date" in milestone and milestone["milestone_due_date"] not in ["None", None, ""]:
@@ -101,10 +100,10 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
                     pay_date = pd.to_datetime(milestone["milestone_due_date"], format="%d-%m-%Y")
                 except ValueError:
                     print(f"Warning: Could not parse date '{milestone['milestone_due_date']}' for milestone '{milestone.get('milestone_name', 'Unnamed')}'. Using inferred date.")
-                    # Fallback to inferred date if parsing fails
+                  
                     pay_date = inferred_dates[i] if i < len(inferred_dates) else None
             else:
-                # Use inferred date if milestone_due_date is "None" or missing
+                
                 pay_date = inferred_dates[i] if i < len(inferred_dates) else None
             
             if pay_date:
@@ -116,10 +115,6 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
 
 
     elif pay_type == "fixed":
-        # This part of the logic assumes that if 'payment_schedule' is a string, it's the old format.
-        # If 'fixed' will now ALSO use the list of dicts format like 'distributed' or 'milestone',
-        # you might need to unify the parsing of 'payment_schedule' list for all list-based types.
-        # For now, it keeps the old string parsing if it receives a string.
         schedule_data = data.get("payment_schedule")
         if isinstance(schedule_data, str) and schedule_data:
             payments = schedule_data.split(";")
@@ -134,15 +129,13 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
                     except ValueError:
                         print(f"Warning: Could not parse fixed payment entry '{entry}'. Skipping.")
                         continue
-        else: # Handle case where payment_schedule might be the new list of dicts for fixed
-            # If fixed payments are also provided as a list of dicts, you might need a similar
-            # loop to the 'distributed' type here. For example:
+        else:
             if isinstance(schedule_data, list):
                 print("Note: 'fixed' payment type received a list for 'payment_schedule'. Processing as if 'distributed'.")
-                # You might copy/paste the distributed logic here or refactor into a helper.
+ 
                 for item in schedule_data:
                     amount = 0.0
-                    if "payment_amount" in item: # Assuming similar keys
+                    if "payment_amount" in item: 
                         amount = float(item["payment_amount"])
                     elif "payment_percent" in item:
                         percent = float(str(item["payment_percent"]).strip('%'))
@@ -183,7 +176,7 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
         payment_frequency = payment_schedule.get("payment_frequency", 1) 
 
         if start and end and payment_frequency > 0:
-            # Generate the *scheduled* payment dates first
+          
             scheduled_dates = []
             current_scheduled_date = start
             while current_scheduled_date <= end:
@@ -199,13 +192,13 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
             for scheduled_date in scheduled_dates:
                 effective_date = scheduled_date + pd.Timedelta(days=delay_days)
                 
-                # --- NEW LOGIC FOR SHIFTING MONTH ---
-                if effective_date.day >= 25: # If payment lands on or after the 25th, push to next month
+              
+                if effective_date.day >= 25: 
                     adjusted_date_for_month = effective_date + pd.DateOffset(months=1)
                     month = (adjusted_date_for_month.replace(day=1)).strftime("%Y-%m")
                 else:
                     month = (effective_date.replace(day=1)).strftime("%Y-%m")
-                # --- END NEW LOGIC ---
+               
 
                 inflow[month] = inflow.get(month, 0.0) + amount_per_period
             
