@@ -1,24 +1,36 @@
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Float, Date, JSON
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Table, Column, String, Float, Integer, MetaData, ForeignKey
 
-Base = declarative_base()
+metadata = MetaData()
 
-class PurchaseOrder(Base):
-    __tablename__ = "purchase_orders"
+purchase_orders = Table(
+    'purchase_orders', metadata,
+    Column('po_id', String, primary_key=True),
+    Column('client_name', String),
+    Column('amount', Float),
+    Column('status', String),
+    Column('payment_terms', Integer),
+    Column('payment_type', String),
+    Column('start_date', String),
+    Column('end_date', String),
+    Column('duration_months', Integer),
+    Column('payment_frequency', Integer, nullable=True),
+)
 
-    id = Column(Integer, primary_key=True, index=True)
-    client_name = Column(String, nullable=False)
-    po_id = Column(String, unique=True, nullable=False)
-    amount = Column(Float, nullable=False)
-    status = Column(String, nullable=False)
-    payment_terms = Column(Integer, nullable=False)
-    payment_type = Column(String, nullable=False)  # milestone / distributed / periodic
-    start_date = Column(Date, nullable=True)
-    end_date = Column(Date, nullable=True)
-    duration_months = Column(Float, nullable=True)
+milestones = Table(
+    'milestones', metadata,
+    Column('id', Integer, primary_key=True, autoincrement=True),
+    Column('po_id', String, ForeignKey('purchase_orders.po_id')),
+    Column('milestone_name', String),
+    Column('milestone_description', String),
+    Column('milestone_due_date', String),
+    Column('milestone_percentage', Float),
+)
 
-    # JSON fields for each payment type details
-    milestones = Column(JSONB, nullable=True)    # list of milestone dicts
-    payment_schedule = Column(JSONB, nullable=True)  # for distributed payments
-    payment_frequency = Column(Integer, nullable=True)  # months, for periodic
+payment_schedules = Table(
+    'payment_schedules', metadata,
+    Column('id', Integer, primary_key=True, autoincrement=True),
+    Column('po_id', String, ForeignKey('purchase_orders.po_id')),
+    Column('payment_date', String),
+    Column('payment_amount', Float),
+    Column('payment_description', String),
+)
