@@ -1,109 +1,52 @@
 # Financial-Tracker
 
-```bash
+## Prerequisites
+- Python 3.8+
+- Git
+
+## Installation
+1. Clone the repository:
+```
 git clone https://github.com/RishabhSpark/Financial-Tracker.git
+```
+
+2. Navigate to the project directory:
+```
 cd Financial-Tracker
-uv pip install -r requirements.txt
 ```
 
+3. Create a virtual environment:
+
+On macOS and Linux:
 ```
-{
-    client_name:,
-    po_id:,
-    amount:
-    status:,
-    payment_terms:,
-    payment_type: monthly,
-    start_date:,
-    end_date:,
-    payment_divisions:          # Periodic (divide by 3 jaise)
-    {
-        payment_1:{
-            date:,
-            amount:
-        },
-        payment_2:{
-            date:,
-            amount:
-        },
-        payment_3:{
-            date:,
-            amount:
-        }
-    },
-
-    client_name:,
-    po_id:,
-    amount:
-    status:,
-    payment_terms:,
-    payment_type: Distributed,
-    start_date:,
-    end_date:,
-    payment_divisions:      # Distributed
-    {
-        payment_1:{
-            date:,
-            amount
-        },
-        payment_2:{
-            date:,
-            amount
-        },
-        payment_3:{
-            date:,
-            amount
-        }
-    },
-    client_name:,
-    po_id:,
-    amount:
-    status:,
-    payment_terms:,
-    payment_type: milestone,
-    start_date:,
-    end_date:,
-    payment_divisions:          # Milestone
-    {
-        payment_1:{             #Initial 
-            date:,
-            amount
-        },
-        payment_2:{             # Milestone1
-            date:,
-            amount
-        },
-        payment_3:{             # Milestone2
-            date:,
-            amount
-        }
-    }
-}
-
+python3 -m venv venv
 ```
 
+On Windows:
 ```
-✅ 1. po_summary.csv
-Contains general information about each Purchase Order.
+python -m venv venv
+```
 
-Columns:
-- client_name
-- po_id
-- amount
-- status
-- payment_terms
-- payment_divi (e.g., monthly, distributed, milestone — optional, if available)
-- start_date
-- end_date
+4. Activate the virtual environment:
 
-✅ 2. po_payments.csv
-Contains the payment breakdown for each PO.
+On macOS and Linux:
+```
+source venv/bin/activate
+```
 
-Columns:
-- po_id
-- payment_label (e.g., payment_1, payment_2, etc.)
-- date
-- amount
-- milestone_label (optional — e.g., Initial, Milestone1, only filled if known)
+On Windows:
+```
+.\venv\Scripts\activate
+```
 
+5. Install the required packages:
+```
+pip install -r requirements.txt
+```
+
+6. Usage
+Once the installation is complete, you can run the application.
+
+```
+python main.py
 ```
