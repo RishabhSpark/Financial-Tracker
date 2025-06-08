@@ -13,7 +13,7 @@ uv pip install -r requirements.txt
     amount:
     status:,
     payment_terms:,
-    payment_divi: monthly,
+    payment_type: monthly,
     start_date:,
     end_date:,
     payment_divisions:          # Periodic (divide by 3 jaise)
@@ -37,7 +37,7 @@ uv pip install -r requirements.txt
     amount:
     status:,
     payment_terms:,
-    payment_divisions:,
+    payment_type: Distributed,
     start_date:,
     end_date:,
     payment_divisions:      # Distributed
@@ -60,7 +60,7 @@ uv pip install -r requirements.txt
     amount:
     status:,
     payment_terms:,
-    payment_
+    payment_type: milestone,
     start_date:,
     end_date:,
     payment_divisions:          # Milestone
