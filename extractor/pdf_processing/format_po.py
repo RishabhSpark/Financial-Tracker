@@ -1,6 +1,9 @@
 from typing import List
+from app.core.logger import setup_logger
 
-def format_po_for_llm(text_blocks: list[str], tables: list[list[list[str]]]) -> str:
+logger = setup_logger()
+
+def format_po_for_llm(text_blocks: List[str], tables: List[List[List[str]]]) -> str:
     """
     Format extracted text blocks and tables into a clean plain-text string
     suitable for input to an LLM.
@@ -13,17 +16,19 @@ def format_po_for_llm(text_blocks: list[str], tables: list[list[list[str]]]) -> 
     Returns:
         A single formatted string combining all text and tables for LLM consumption.
     """
-    # Join all text blocks separated by double newlines for readability
+    logger.info(f"Formatting {len(text_blocks)} text blocks and {len(tables)} tables for LLM input.")
+    
     formatted_text = "\n\n".join(text_blocks)
-
+    logger.debug("Formatted text blocks.")
+    
     # Format each table into a readable plain text table
     formatted_tables = ""
     for idx, table in enumerate(tables, start=1):
-        # Convert each row (list of cells) into tab-separated strings
+        logger.debug(f"Formatting table {idx} with {len(table)} rows.")
         table_rows = ["\t".join(map(str, row)) for row in table]
-        # Join rows with newlines
         table_str = "\n".join(table_rows)
         formatted_tables += f"\n\nTable {idx}:\n{table_str}"
 
-    # Combine text blocks and tables
+    logger.info("Finished formatting text and tables for LLM.")
+
     return formatted_text + formatted_tables
