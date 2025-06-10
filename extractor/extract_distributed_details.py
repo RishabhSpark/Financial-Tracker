@@ -3,17 +3,22 @@ import os
 import re
 from dotenv import load_dotenv
 import google.generativeai as genai
+from app.core.logger import setup_logger
+
+logger = setup_logger()
 
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
+    logger.error("GEMINI_API_KEY not set in environment variables.")
     raise ValueError("GEMINI_API_KEY not set in environment variables.")
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 def extract_distributed_payment_details(po_text: str) -> dict:
+    logger.info("Starting extraction of distributed payment details from PO text.")
     prompt = f"""
 You are an assistant that extracts structured data from a Distributed project payment Purchase Order.
 
@@ -44,21 +49,25 @@ Purchase Order text:
 {po_text}
 \"\"\"
 """
+    logger.debug("Sending prompt to Gemini model.")
     response = model.generate_content(prompt)
 
     raw_response = response.candidates[0].content.parts[0].text.strip()
+    logger.debug("Received response from Gemini model.")
 
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw_response, re.DOTALL)
     if not match:
-        print("Raw Gemini response (not valid JSON block):")
-        print(raw_response)
+        logger.error("Gemini response did not contain valid JSON block.")
+        logger.debug(f"Raw Gemini response: {raw_response}")
         raise ValueError("Gemini response did not contain valid JSON block")
 
     json_str = match.group(1)
 
     try:
-        return json.loads(json_str)
+        result = json.loads(json_str)
+        logger.info("Successfully extracted distributed payment details from PO text.")
+        return result
     except json.JSONDecodeError as e:
-        print("Raw JSON that failed parsing:")
-        print(json_str)
+        logger.error("Failed to parse JSON from Gemini response.")
+        logger.debug(f"Raw JSON that failed parsing: {json_str}")
         raise e
