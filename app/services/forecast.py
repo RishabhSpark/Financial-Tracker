@@ -241,7 +241,7 @@ def forecast_table(data: Dict) -> pd.DataFrame:
         {
             "Client Name": client_name,
             "Month": month,
-            "Inflow (USD)": f"${amount:,.2f}",
+            "Inflow": amount,
             "PO No": po_number,
 
         }
