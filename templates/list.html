@@ -8,7 +8,9 @@
     <ul>
       {% for file in files %}
       <li>
-        <a href="{{ url_for('read_pdf', file_id=file.id) }}">{{ file.name }}</a>
+        <a href="{{ url_for('process_pdf', file_id=file.id) }}"
+          >{{ file.name }}</a
+        >
       </li>
       {% endfor %}
     </ul>

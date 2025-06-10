@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>PO Sync Dashboard</title>
+    <style>
+      .table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .table th,
+      .table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>📄 Sync a Purchase Order from Google Drive</h2>
+    <form action="/sync" method="post">
+      <label for="file_id">Google Drive File ID:</label><br />
+      <input type="text" id="file_id" name="file_id" required /><br /><br />
+      <button type="submit">🔄 Sync PO</button>
+    </form>
+
+    <hr />
+
+    <h2>📊 Forecast Pivot Table</h2>
+    <div>{{ pivot_table | safe }}</div>
+  </body>
+</html>
