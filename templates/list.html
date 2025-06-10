@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>File List</title>
+  </head>
+  <body>
+    <h2>Drive Files</h2>
+    <ul>
+      {% for file in files %}
+      <li>
+        <a href="{{ url_for('process_pdf', file_id=file.id) }}"
+          >{{ file.name }}</a
+        >
+      </li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>
