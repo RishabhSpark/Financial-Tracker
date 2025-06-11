@@ -262,5 +262,126 @@ def creds_to_dict(creds):
     }
 
 
+def get_drive_tree(service, parent_id='root'):
+    """
+    Recursively builds a tree of files/folders from Google Drive.
+    Returns a nested dict structure.
+    """
+    query = f"'{parent_id}' in parents and trashed = false"
+    results = service.files().list(q=query, fields="files(id, name, mimeType)", pageSize=1000).execute()
+    items = results.get('files', [])
+    tree = []
+    for item in items:
+        node = {
+            'id': item['id'],
+            'name': item['name'],
+            'mimeType': item['mimeType']
+        }
+        if item['mimeType'] == 'application/vnd.google-apps.folder':
+            node['children'] = get_drive_tree(service, item['id'])
+        tree.append(node)
+    return tree
+
+
+@app.route('/drive_tree_children/<folder_id>')
+def drive_tree_children(folder_id):
+    if 'credentials' not in session:
+        return ''
+    creds = Credentials.from_authorized_user_info(session['credentials'])
+    service = build('drive', 'v3', credentials=creds)
+    children = get_drive_tree(service, folder_id)
+    def render_tree(nodes, parent_path=""):
+        html = '<ul style="margin-left:20px">'
+        for node in nodes:
+            if node['mimeType'] == 'application/vnd.google-apps.folder':
+                folder_path = f"{parent_path}/{node['name']}" if parent_path else node['name']
+                html += f'<li class="folder"><span class="toggle">+</span> <span class="folder-name">📁 {node["name"]}</span> <button class="select-folder-btn" data-folder-path="{folder_path}">Select Folder</button><div class="children" style="display:none" data-folder-id="{node["id"]}" data-folder-path="{folder_path}"></div></li>'
+            else:
+                html += f'<li class="file">📄 {node["name"]}</li>'
+        html += '</ul>'
+        return html
+    parent_path = request.args.get('parent_path', '')
+    return render_tree(children, parent_path)
+
+@app.route('/drive_tree')
+def drive_tree():
+    if 'credentials' not in session:
+        return redirect(url_for('authorize'))
+    creds = Credentials.from_authorized_user_info(session['credentials'])
+    service = build('drive', 'v3', credentials=creds)
+    tree = get_drive_tree(service)
+    def render_tree(nodes, parent_path=""):
+        html = '<ul>'
+        for node in nodes:
+            if node['mimeType'] == 'application/vnd.google-apps.folder':
+                folder_path = f"{parent_path}/{node['name']}" if parent_path else node['name']
+                html += f'<li class="folder"><span class="toggle">+</span> <span class="folder-name">📁 {node["name"]}</span> <button class="select-folder-btn" data-folder-path="{folder_path}">Select Folder</button><div class="children" style="display:none" data-folder-id="{node["id"]}" data-folder-path="{folder_path}"></div></li>'
+            else:
+                html += f'<li class="file">📄 {node["name"]}</li>'
+        html += '</ul>'
+        return html
+    tree_html = render_tree(tree)
+    return render_template_string("""
+        <html>
+        <head>
+        <style>
+        ul { list-style-type: none; }
+        .folder { font-weight: bold; }
+        .file { margin-left: 20px; }
+        .toggle { cursor: pointer; color: #007bff; margin-right: 5px; }
+        .folder-name { cursor: pointer; }
+        .select-folder-btn { margin-left: 10px; font-size: 0.9em; }
+        #selected-folder-box { margin-top: 30px; font-size: 1.1em; }
+        #selected-folder-input { width: 60%; font-size: 1em; background: #f5f5f5; border: 1px solid #ccc; padding: 6px; border-radius: 4px; }
+        </style>
+        </head>
+        <body>
+        <h1>Google Drive Folder Tree</h1>
+        <div id="drive-tree">
+            {{ tree_html|safe }}
+        </div>
+        <div id="selected-folder-box">
+            <label for="selected-folder-input"><b>Folder selected:</b></label>
+            <input type="text" id="selected-folder-input" value="" readonly />
+        </div>
+        <a href="/">Back to Home</a>
+        <script>
+        // Tree expand/collapse logic
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('toggle') || e.target.classList.contains('folder-name')) {
+                var li = e.target.closest('li.folder');
+                var childrenDiv = li.querySelector('.children');
+                var folderId = childrenDiv.getAttribute('data-folder-id');
+                var folderPath = childrenDiv.getAttribute('data-folder-path');
+                if (childrenDiv.style.display === 'none') {
+                    if (!childrenDiv.hasChildNodes()) {
+                        fetch('/drive_tree_children/' + folderId + '?parent_path=' + encodeURIComponent(folderPath))
+                            .then(resp => resp.text())
+                            .then(html => {
+                                childrenDiv.innerHTML = html;
+                                childrenDiv.style.display = 'block';
+                                li.querySelector('.toggle').textContent = '-';
+                            });
+                    } else {
+                        childrenDiv.style.display = 'block';
+                        li.querySelector('.toggle').textContent = '-';
+                    }
+                } else {
+                    childrenDiv.style.display = 'none';
+                    li.querySelector('.toggle').textContent = '+';
+                }
+            }
+            // Folder select logic
+            if (e.target.classList.contains('select-folder-btn')) {
+                var folderPath = e.target.getAttribute('data-folder-path');
+                document.getElementById('selected-folder-input').value = folderPath;
+            }
+        });
+        </script>
+        </body>
+        </html>
+    """, tree_html=tree_html)
+
+
 if __name__ == '__main__':
     app.run(debug=True)
