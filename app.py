@@ -19,6 +19,7 @@ from extractor.pdf_processing.format_po import format_po_for_llm
 app = Flask(__name__)
 app.secret_key = "your-secret-key"
 
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 CLIENT_SECRETS_FILE = 'client_secret.json'
 
