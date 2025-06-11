@@ -68,8 +68,14 @@ def get_po_with_schedule(po_id: str):
                 "payment_description": payment.payment_description
             })
 
-        # Similarly, you can add milestones here if needed
-
+        po_dict["milestones"] = []
+        for ms in po.milestones:
+            po_dict["milestones"].append({
+                "milestone_name": ms.milestone_name,
+                "milestone_description": ms.milestone_description,
+                "milestone_due_date": ms.milestone_due_date,
+                "milestone_percentage": ms.milestone_percentage
+            })            
         return po_dict
     finally:
         session.close()
