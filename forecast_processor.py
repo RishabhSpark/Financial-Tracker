@@ -105,7 +105,7 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
             print(f"Warning: Could not standardize 'Month' column format: {e}. Proceeding with existing format.")
             # As a fallback, ensure it's at least string type if not datetime-convertible
             if not pd.api.types.is_string_dtype(combined_df['Month']):
-                 combined_df['Month'] = combined_df['Month'].astype(str)
+                combined_df['Month'] = combined_df['Month'].astype(str)
 
     # Ensure consistent types for other key columns before de-duplication
     if "Client Name" in combined_df.columns:
