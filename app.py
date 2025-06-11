@@ -53,7 +53,7 @@ def oauth2callback():
     flow.fetch_token(authorization_response=request.url)
     creds = flow.credentials
     session['credentials'] = creds_to_dict(creds)
-    return redirect(url_for('forecast'))
+    return redirect(url_for('drive_tree')) # Changed from 'forecast'
 
 
 @app.route('/list')
@@ -230,6 +230,12 @@ def sync_file():
         return f"<p>❌ Error syncing file: {e}</p>"
 
 
+@app.route('/dashboard')
+def dashboard():
+    # Placeholder for dashboard content
+    # You can fetch data from your database or other sources to display here
+    return "<h1>Welcome to your Dashboard!</h1><p>Folder selection confirmed and files are being processed (if applicable).</p>"
+
 @app.route("/forecast")
 def forecast():
     pivot_html = generate_pivot_table_html()
@@ -390,6 +396,7 @@ def drive_tree():
         #confirm-folder-btn { margin-top: 10px; font-size: 1em; padding: 6px 16px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         #confirm-folder-btn:disabled { background: #aaa; cursor: not-allowed; }
         #result-table { margin-top: 30px; }
+        #go-to-dashboard-btn { margin-left: 10px; font-size: 1em; padding: 6px 16px; background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
         </style>
         </head>
         <body>
@@ -403,7 +410,8 @@ def drive_tree():
             <button id="confirm-folder-btn" disabled>Confirm Folder</button>
         </div>
         <div id="result-table"></div>
-        <a href="/">Back to Home</a>
+        <!-- <a href="/">Back to Home</a> -->  <!-- Removed Back to Home link -->
+        <a href="{{ url_for('forecast') }}" id="go-to-dashboard-btn" style="display:none;">Go to Forecast/Dashboard</a>
         <script>
         // Tree expand/collapse logic
         document.addEventListener('click', function(e) {
@@ -451,9 +459,25 @@ def drive_tree():
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ folder_id: folderId })
             })
-            .then(resp => resp.text())
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url; // Handle redirect from /confirm_folder
+                    return null; // Stop further processing if redirected
+                }
+                return response.text();
+            })
             .then(html => {
-                document.getElementById('result-table').innerHTML = html;
+                if (html) { // Only process if not redirected
+                    document.getElementById('result-table').innerHTML = html;
+                    // Show the "Go to Forecast/Dashboard" button after successful confirmation
+                    document.getElementById('go-to-dashboard-btn').style.display = 'inline-block';
+                }
+                btn.disabled = false;
+                btn.textContent = 'Confirm Folder';
+            })
+            .catch(error => {
+                console.error('Error confirming folder:', error);
+                document.getElementById('result-table').innerHTML = '<p>Error confirming folder. Please try again.</p>';
                 btn.disabled = false;
                 btn.textContent = 'Confirm Folder';
             });
