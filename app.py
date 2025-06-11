@@ -14,6 +14,8 @@ from flask import Flask, request, redirect, session, url_for, render_template,  
 from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
 from extractor.pdf_processing.format_po import format_po_for_llm
+from flask import jsonify
+import sqlite3
 
 
 app = Flask(__name__)
@@ -333,6 +335,9 @@ def drive_tree():
         .select-folder-btn { margin-left: 10px; font-size: 0.9em; }
         #selected-folder-box { margin-top: 30px; font-size: 1.1em; }
         #selected-folder-input { width: 60%; font-size: 1em; background: #f5f5f5; border: 1px solid #ccc; padding: 6px; border-radius: 4px; }
+        #confirm-folder-btn { margin-top: 10px; font-size: 1em; padding: 6px 16px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        #confirm-folder-btn:disabled { background: #aaa; cursor: not-allowed; }
+        #result-table { margin-top: 30px; }
         </style>
         </head>
         <body>
@@ -343,7 +348,9 @@ def drive_tree():
         <div id="selected-folder-box">
             <label for="selected-folder-input"><b>Folder selected:</b></label>
             <input type="text" id="selected-folder-input" value="" readonly />
+            <button id="confirm-folder-btn" disabled>Confirm Folder</button>
         </div>
+        <div id="result-table"></div>
         <a href="/">Back to Home</a>
         <script>
         // Tree expand/collapse logic
@@ -374,13 +381,134 @@ def drive_tree():
             // Folder select logic
             if (e.target.classList.contains('select-folder-btn')) {
                 var folderPath = e.target.getAttribute('data-folder-path');
+                var folderId = e.target.parentElement.querySelector('.children').getAttribute('data-folder-id');
                 document.getElementById('selected-folder-input').value = folderPath;
+                document.getElementById('selected-folder-input').setAttribute('data-folder-id', folderId);
+                document.getElementById('confirm-folder-btn').disabled = false;
             }
+        });
+        // Confirm folder logic
+        document.getElementById('confirm-folder-btn').addEventListener('click', function() {
+            var folderId = document.getElementById('selected-folder-input').getAttribute('data-folder-id');
+            if (!folderId) return;
+            var btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            fetch('/confirm_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder_id: folderId })
+            })
+            .then(resp => resp.text())
+            .then(html => {
+                document.getElementById('result-table').innerHTML = html;
+                btn.disabled = false;
+                btn.textContent = 'Confirm Folder';
+            });
         });
         </script>
         </body>
         </html>
     """, tree_html=tree_html)
+
+
+def list_all_files_in_folder(service, folder_id):
+    """
+    Recursively list all files in a Google Drive folder by folder_id.
+    Returns a list of dicts: [{id, name, modifiedTime}]
+    """
+    files = []
+    page_token = None
+    while True:
+        response = service.files().list(
+            q=f"'{folder_id}' in parents and trashed = false",
+            fields="nextPageToken, files(id, name, mimeType, modifiedTime)",
+            pageToken=page_token
+        ).execute()
+        for file in response.get('files', []):
+            if file['mimeType'] == 'application/vnd.google-apps.folder':
+                files.extend(list_all_files_in_folder(service, file['id']))
+            else:
+                files.append({
+                    'id': file['id'],
+                    'name': file['name'],
+                    'modifiedTime': file.get('modifiedTime', '')
+                })
+        page_token = response.get('nextPageToken', None)
+        if not page_token:
+            break
+    return files
+
+# Ensure the table exists
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'po_database.db')
+def ensure_drive_files_table():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS drive_files (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            last_edited TEXT
+        )''')
+        conn.commit()
+
+def upsert_drive_files(files):
+    with sqlite3.connect(DB_PATH) as conn:
+        for f in files:
+            conn.execute('''INSERT OR REPLACE INTO drive_files (id, name, last_edited) VALUES (?, ?, ?)''', (f['id'], f['name'], f['modifiedTime']))
+        conn.commit()
+
+def upsert_drive_files_with_validation(files):
+    """
+    Validate and sync the drive_files table with the current files list.
+    - If filename and timestamp match: skip
+    - If filename matches but timestamp doesn't: update
+    - If filename doesn't exist: insert
+    - If filename in DB but not in files: delete
+    """
+    with sqlite3.connect(DB_PATH) as conn:
+        # Get all current DB records
+        db_files = {row[1]: (row[0], row[2]) for row in conn.execute('SELECT id, name, last_edited FROM drive_files')}
+        files_by_name = {f['name']: f for f in files}
+        # Insert or update
+        for f in files:
+            if f['name'] in db_files:
+                db_id, db_last_edited = db_files[f['name']]
+                if db_last_edited != f['modifiedTime']:
+                    # Update timestamp
+                    conn.execute('UPDATE drive_files SET id=?, last_edited=? WHERE name=?', (f['id'], f['modifiedTime'], f['name']))
+                # else: match, skip
+            else:
+                # Insert new
+                conn.execute('INSERT INTO drive_files (id, name, last_edited) VALUES (?, ?, ?)', (f['id'], f['name'], f['modifiedTime']))
+        # Delete files not present in current folder
+        current_names = set(f['name'] for f in files)
+        for db_name in db_files:
+            if db_name not in current_names:
+                conn.execute('DELETE FROM drive_files WHERE name=?', (db_name,))
+        conn.commit()
+
+def render_files_table(files):
+    if not files:
+        return '<p>No files found in this folder.</p>'
+    html = '<table border="1" id="drive-files-table"><tr><th>Filename</th><th>Last Edited</th></tr>'
+    for f in files:
+        html += f'<tr><td>{f["name"]}</td><td>{f["modifiedTime"]}</td></tr>'
+    html += '</table>'
+    return html
+
+@app.route('/confirm_folder', methods=['POST'])
+def confirm_folder():
+    if 'credentials' not in session:
+        return '<p>Not authorized.</p>', 401
+    creds = Credentials.from_authorized_user_info(session['credentials'])
+    service = build('drive', 'v3', credentials=creds)
+    data = request.get_json()
+    folder_id = data.get('folder_id')
+    if not folder_id:
+        return '<p>No folder selected.</p>', 400
+    ensure_drive_files_table()
+    files = list_all_files_in_folder(service, folder_id)
+    upsert_drive_files_with_validation(files)
+    return render_files_table(files)
 
 
 if __name__ == '__main__':
