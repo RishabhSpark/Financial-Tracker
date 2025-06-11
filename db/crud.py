@@ -4,12 +4,16 @@ def insert_or_replace_po(po_dict: dict):
     session = SessionLocal()
     po_id = po_dict.get("po_id")
 
-    # delete if PO exists (also cascades delete milestones and schedules)
+    # Check if PO exists
     existing_po = session.query(PurchaseOrder).filter_by(po_id=po_id).first()
+    
     if existing_po:
-        session.delete(existing_po)
-        session.commit()
-
+        # PO already exists, skip insertion or update if necessary
+        # For now, we'll just skip. If update logic is needed, it would go here.
+        session.close()
+        return # Or log a message, etc.
+    
+    # PO does not exist, proceed with insertion
     # insert main PO
     po = PurchaseOrder(
         po_id=po_dict["po_id"],
