@@ -9,7 +9,8 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
-from db.crud import insert_or_replace_po
+from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy # Modified import
+from db.database import init_db # Add this import
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string
 from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
@@ -439,53 +440,6 @@ def list_all_files_in_folder(service, folder_id):
             break
     return files
 
-# Ensure the table exists
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'po_database.db')
-def ensure_drive_files_table():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS drive_files (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            last_edited TEXT
-        )''')
-        conn.commit()
-
-def upsert_drive_files(files):
-    with sqlite3.connect(DB_PATH) as conn:
-        for f in files:
-            conn.execute('''INSERT OR REPLACE INTO drive_files (id, name, last_edited) VALUES (?, ?, ?)''', (f['id'], f['name'], f['modifiedTime']))
-        conn.commit()
-
-def upsert_drive_files_with_validation(files):
-    """
-    Validate and sync the drive_files table with the current files list.
-    - If filename and timestamp match: skip
-    - If filename matches but timestamp doesn't: update
-    - If filename doesn't exist: insert
-    - If filename in DB but not in files: delete
-    """
-    with sqlite3.connect(DB_PATH) as conn:
-        # Get all current DB records
-        db_files = {row[1]: (row[0], row[2]) for row in conn.execute('SELECT id, name, last_edited FROM drive_files')}
-        files_by_name = {f['name']: f for f in files}
-        # Insert or update
-        for f in files:
-            if f['name'] in db_files:
-                db_id, db_last_edited = db_files[f['name']]
-                if db_last_edited != f['modifiedTime']:
-                    # Update timestamp
-                    conn.execute('UPDATE drive_files SET id=?, last_edited=? WHERE name=?', (f['id'], f['modifiedTime'], f['name']))
-                # else: match, skip
-            else:
-                # Insert new
-                conn.execute('INSERT INTO drive_files (id, name, last_edited) VALUES (?, ?, ?)', (f['id'], f['name'], f['modifiedTime']))
-        # Delete files not present in current folder
-        current_names = set(f['name'] for f in files)
-        for db_name in db_files:
-            if db_name not in current_names:
-                conn.execute('DELETE FROM drive_files WHERE name=?', (db_name,))
-        conn.commit()
-
 def render_files_table(files):
     if not files:
         return '<p>No files found in this folder.</p>'
@@ -505,11 +459,16 @@ def confirm_folder():
     folder_id = data.get('folder_id')
     if not folder_id:
         return '<p>No folder selected.</p>', 400
-    ensure_drive_files_table()
+    # ensure_drive_files_table() # Removed call to old SQLite function
     files = list_all_files_in_folder(service, folder_id)
-    upsert_drive_files_with_validation(files)
+    try:
+        upsert_drive_files_sqlalchemy(files) # Use the new SQLAlchemy function
+    except Exception as e:
+        # Log the error e.g., app.logger.error(f"Error upserting drive files: {e}")
+        return f"<p>Error updating database: {e}</p>", 500
     return render_files_table(files)
 
 
 if __name__ == '__main__':
+    init_db()
     app.run(debug=True)
