@@ -240,17 +240,68 @@ def generate_pivot_table_html():
     try:
         df = pd.read_csv("forecast_output.csv")
 
+        # Ensure 'Inflow (USD)' is numeric and NaNs are 0.0.
+        if 'Inflow (USD)' in df.columns:
+            df['Inflow (USD)'] = pd.to_numeric(df['Inflow (USD)'], errors='coerce').fillna(0.0)
+        else:
+            # If 'Inflow (USD)' column is missing, create it as an empty float series.
+            # This helps prevent downstream errors but indicates an issue with forecast_output.csv.
+            df['Inflow (USD)'] = pd.Series(dtype='float64')
+
+        all_months_for_pivot = []
+        # Check if 'Month' column exists and has valid data before processing
+        if 'Month' in df.columns and not df['Month'].dropna().empty:
+            month_as_datetime = pd.to_datetime(df['Month'], format='%Y-%m', errors='coerce')
+            month_as_datetime.dropna(inplace=True) # Remove rows where 'Month' couldn't be parsed
+            
+            if not month_as_datetime.empty: # Check if any valid months remain
+                min_month = month_as_datetime.min()
+                max_month = month_as_datetime.max()
+                # Generate a complete list of months in 'YYYY-MM' format
+                all_months_for_pivot = pd.date_range(min_month, max_month, freq='MS').strftime('%Y-%m').tolist()
+        
+        # Ensure index and columns for pivot_table exist, even if empty, to prevent errors.
+        # Ideally, forecast_output.csv should always have these.
+        for col in ["Client Name", "PO No", "Month"]:
+            if col not in df.columns:
+                df[col] = pd.Series(dtype='object')
+
+
         pivot = df.pivot_table(
             index=["Client Name", "PO No"],
             columns="Month",
             values="Inflow (USD)",
             aggfunc="sum",
-            fill_value=0
-        ).reset_index()
+            fill_value=0.0  # Changed from 0.000
+        )
+        
+        pivot = pivot.reindex(columns=all_months_for_pivot, fill_value=0.0)  # Changed from 0
+        pivot.reset_index(inplace=True) # Move "Client Name" and "PO No" from index to columns
+        
+        # Add a serial number column
+        if not pivot.empty:
+            pivot.insert(0, 'S.No', range(1, 1 + len(pivot)))
+        else:
+            # If pivot is empty, ensure key columns exist for a consistent empty table structure
+            if 'S.No' not in pivot.columns: pivot['S.No'] = pd.Series(dtype='int')
+            if "Client Name" not in pivot.columns: pivot["Client Name"] = pd.Series(dtype='object')
+            if "PO No" not in pivot.columns: pivot["PO No"] = pd.Series(dtype='object')
 
-        return pivot.to_html(classes="table table-striped table-bordered", border=0, index=False)
 
+        # Convert the pivot table to HTML, formatting float values to two decimal places
+        return pivot.to_html(
+            classes="table table-striped table-bordered",
+            border=0,
+            index=False,
+            float_format='%.2f'  # ADDED: Format all floats to "0.00"
+        )
+
+    except FileNotFoundError:
+        return "<p>Error: <code>forecast_output.csv</code> not found. Please generate the forecast first.</p>"
     except Exception as e:
+        # For debugging, consider logging the error:
+        # import logging
+        # logging.error(f"Error generating pivot table: {e}", exc_info=True)
         return f"<p>Error generating pivot table: {e}</p>"
 
 
