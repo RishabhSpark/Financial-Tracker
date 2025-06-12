@@ -150,3 +150,33 @@ def upsert_drive_files_sqlalchemy(files_data: list[dict]):
         raise
     finally:
         session.close()
+
+
+def get_all_drive_files():
+    """
+    Returns a dict mapping file name to (last_edited, id) for all files in the drive_files table.
+    """
+    session = SessionLocal()
+    try:
+        files = session.query(DriveFile).all()
+        # Map: name -> (last_edited, id)
+        return {f.name: (f.last_edited, f.id) for f in files}
+    finally:
+        session.close()
+
+
+def delete_po_by_drive_file_id(file_id):
+    """
+    Deletes all PO-related data (purchase order, milestones, payment schedule) for a given drive file id.
+    Assumes PO id is the same as drive file id or can be mapped (adjust as needed).
+    """
+    session = SessionLocal()
+    try:
+        # Find all POs linked to this drive file id (assuming po_id == file_id)
+        po = session.query(PurchaseOrder).filter_by(po_id=file_id).first()
+        if po:
+            # Delete related milestones and payment schedules (cascade should handle if set)
+            session.delete(po)
+            session.commit()
+    finally:
+        session.close()

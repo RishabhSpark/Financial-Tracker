@@ -9,8 +9,8 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
-from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy # Modified import
-from db.database import init_db # Add this import
+from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id
+from db.database import init_db
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string
 from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
@@ -187,47 +187,47 @@ def download_pdf(file_id):
     return f"<p>✅ PDF downloaded and saved to <code>{save_path}</code></p>"
 
 
-@app.route("/sync", methods=["POST"])
-def sync_file():
-    if 'credentials' not in session:
-        return redirect(url_for('authorize'))
+# @app.route("/sync", methods=["POST"])
+# def sync_file():
+#     if 'credentials' not in session:
+#         return redirect(url_for('authorize'))
 
-    creds = Credentials.from_authorized_user_info(session['credentials'])
-    service = build('drive', 'v3', credentials=creds)
+#     creds = Credentials.from_authorized_user_info(session['credentials'])
+#     service = build('drive', 'v3', credentials=creds)
 
-    file_id_or_path = request.form.get("file_path", "").strip()
+#     file_id_or_path = request.form.get("file_path", "").strip()
 
-    try:
-        # Get file metadata
-        file = service.files().get(fileId=file_id_or_path, fields="name, mimeType").execute()
+#     try:
+#         # Get file metadata
+#         file = service.files().get(fileId=file_id_or_path, fields="name, mimeType").execute()
 
-        # Check PDF
-        if file['mimeType'] != 'application/pdf':
-            return "<p>❌ Only PDF files are supported.</p>"
+#         # Check PDF
+#         if file['mimeType'] != 'application/pdf':
+#             return "<p>❌ Only PDF files are supported.</p>"
 
-        request_file = service.files().get_media(fileId=file_id_or_path)
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, request_file)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
+#         request_file = service.files().get_media(fileId=file_id_or_path)
+#         fh = io.BytesIO()
+#         downloader = MediaIoBaseDownload(fh, request_file)
+#         done = False
+#         while not done:
+#             status, done = downloader.next_chunk()
 
-        # Move to start of file and read content
-        fh.seek(0)
-        pdf_reader = PdfReader(fh)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() or ""
+#         # Move to start of file and read content
+#         fh.seek(0)
+#         pdf_reader = PdfReader(fh)
+#         text = ""
+#         for page in pdf_reader.pages:
+#             text += page.extract_text() or ""
 
-        # Use existing pipeline to extract and store
-        po_json = run_pipeline(text)
-        insert_or_replace_po(po_json)
+#         # Use existing pipeline to extract and store
+#         po_json = run_pipeline(text)
+#         insert_or_replace_po(po_json)
 
-        return "<p>✅ File synced successfully from Google Drive!</p>"
+#         return "<p>✅ File synced successfully from Google Drive!</p>"
 
-    except Exception as e:
-        print(e)
-        return f"<p>❌ Error syncing file: {e}</p>"
+#     except Exception as e:
+#         print(e)
+#         return f"<p>❌ Error syncing file: {e}</p>"
 
 
 @app.route('/dashboard')
@@ -637,117 +637,104 @@ def extract_text_from_drive_folder():
     pdf_files_found = False
     extracted_texts_summary = []
 
-    print(f"\\nStarting PDF text extraction for folder ID: {folder_id}")
+    print(f"\nStarting PDF text extraction for folder ID: {folder_id}")
+    # 1. Get current DB state for drive files
+    db_files = get_all_drive_files()  # {name: (last_edited, id)}
+    # 2. Build a set of current drive file names and ids from the folder
+    current_drive_file_names = set()
+    current_drive_file_ids = set()
     for file_item in all_files_in_folder:
         if file_item.get('mimeType') == 'application/pdf':
-            pdf_files_found = True
-            print(f"Processing PDF: {file_item['name']} (ID: {file_item['id']})")
-            fh = None  # Initialize fh to None
-            temp_pdf_path = None  # Initialize temp_pdf_path to None
+            current_drive_file_names.add(file_item['name'])
+            current_drive_file_ids.add(file_item['id'])
+    # 3. Find files in DB that are no longer in Drive and delete their PO data (by filename)
+    db_file_names = set(db_files.keys())
+    for db_name, (db_last_edited, db_id) in db_files.items():
+        if db_name not in current_drive_file_names:
+            print(f"File '{db_name}' (id={db_id}) deleted from Drive (by filename). Removing from database...")
+            delete_po_by_drive_file_id(db_id)
+    # 4. For each file in Drive, decide to skip, update, or add
+    for file_item in all_files_in_folder:
+        if file_item.get('mimeType') != 'application/pdf':
+            continue
+        file_name = file_item['name']
+        file_id = file_item['id']
+        file_last_edited = file_item.get('modifiedTime')
+        # Convert modifiedTime to datetime for comparison
+        from datetime import datetime
+        file_last_edited_dt = None
+        if file_last_edited:
             try:
-                request_file = service.files().get_media(fileId=file_item['id'])
-                fh = io.BytesIO()
-                downloader = MediaIoBaseDownload(fh, request_file)
-                done = False
-                while not done:
-                    status, done = downloader.next_chunk()
+                if file_last_edited.endswith('Z'):
+                    file_last_edited_dt = datetime.fromisoformat(file_last_edited[:-1] + '+00:00')
+                else:
+                    file_last_edited_dt = datetime.fromisoformat(file_last_edited)
+            except Exception:
+                pass
+        db_entry = db_files.get(file_name)
+        if db_entry:
+            db_last_edited, db_id = db_entry
+            if db_last_edited == file_last_edited_dt:
+                print(f"Skipping {file_name} (unchanged)")
+                continue  # Skip unchanged
+            else:
+                print(f"Updating {file_name} (timestamp changed)")
+                # Remove old PO data for this file id before reprocessing
+                delete_po_by_drive_file_id(file_id)
+        else:
+            print(f"Adding new file {file_name}")
+        try:
+            # Download the file
+            request_file = service.files().get_media(fileId=file_item['id'])
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request_file)
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
+            
+            fh.seek(0)
+
+            # --- Integration of extract_blocks and extract_tables ---
+            temp_pdf_path = None
+            try:
+                # Create a temporary file to save the PDF content
+                temp_dir = tempfile.gettempdir()
+                # Generate a unique filename to avoid conflicts if multiple requests happen concurrently
+                temp_pdf_filename = f"temp_drive_pdf_{file_item['id']}_{os.urandom(4).hex()}.pdf"
+                temp_pdf_path = os.path.join(temp_dir, temp_pdf_filename)
+
+                with open(temp_pdf_path, 'wb') as f_temp:
+                    f_temp.write(fh.getvalue())
                 
-                fh.seek(0)
+                print(f"  PDF content for {file_item['name']} saved to temporary file: {temp_pdf_path}")
 
-                # --- Integration of extract_blocks and extract_tables ---
-                try:
-                    # Create a temporary file to save the PDF content
-                    temp_dir = tempfile.gettempdir()
-                    # Generate a unique filename to avoid conflicts if multiple requests happen concurrently
-                    temp_pdf_filename = f"temp_drive_pdf_{file_item['id']}_{os.urandom(4).hex()}.pdf";
-                    temp_pdf_path = os.path.join(temp_dir, temp_pdf_filename)
+                # --- RUN EXTRACTION PIPELINE (like main.py) ---
+                print(f"  Running extraction pipeline for {file_item['name']}...")
+                po_json_data_for_db = run_pipeline(temp_pdf_path)
+                if po_json_data_for_db:
+                    insert_or_replace_po(po_json_data_for_db)
+                    print(f"  Successfully inserted/replaced PO data for {file_item['name']} into database.")
+                    extracted_texts_summary.append(f"Inserted/replaced PO data for: {file_item['name']}")
+                else:
+                    print(f"  Warning: No data extracted from {file_item['name']}. Skipping database insertion for this file.")
+                    extracted_texts_summary.append(f"No data extracted from {file_item['name']}. DB insert skipped.")
+                # --- END PIPELINE ---
 
-                    with open(temp_pdf_path, 'wb') as f_temp:
-                        f_temp.write(fh.getvalue())
-                    
-                    print(f"  PDF content for {file_item['name']} saved to temporary file: {temp_pdf_path}")
-
-                    # --- RUN EXTRACTION PIPELINE (like main.py) ---
-                    print(f"  Running extraction pipeline for {file_item['name']}...")
-                    po_json_data_for_db = run_pipeline(temp_pdf_path)
-                    if po_json_data_for_db:
-                        insert_or_replace_po(po_json_data_for_db)
-                        print(f"  Successfully inserted/replaced PO data for {file_item['name']} into database.")
-                        extracted_texts_summary.append(f"Inserted/replaced PO data for: {file_item['name']}")
-                    else:
-                        print(f"  Warning: No data extracted from {file_item['name']}. Skipping database insertion for this file.")
-                        extracted_texts_summary.append(f"No data extracted from {file_item['name']}. DB insert skipped.")
-                    # --- END PIPELINE ---
-
-                    # # 1. Extract text blocks using PyMuPDF (fitz)
-                    # print(f"\n  --- Attempting to extract blocks from {file_item['name']} ---")
-                    # try:
-                    #     blocks = extract_blocks(temp_pdf_path)
-                    #     if blocks:
-                    #         print(f"  Extracted {len(blocks)} blocks from {file_item['name']}.")
-                    #         extracted_texts_summary.append(f"Successfully extracted {len(blocks)} blocks from: {file_item['name']}")
-                    #     else:
-                    #         print(f"  No text blocks extracted from {file_item['name']}.")
-                    #         extracted_texts_summary.append(f"No blocks extracted from: {file_item['name']}")
-                    # except Exception as e_blocks:
-                    #     print(f"  Error extracting blocks from {file_item['name']}: {e_blocks}")
-                    #     extracted_texts_summary.append(f"Error extracting blocks from {file_item['name']}: {e_blocks}")
-
-                    # # 2. Extract tables using pdfplumber
-                    # print(f"\n  --- Attempting to extract tables from {file_item['name']} ---")
-                    # try:
-                    #     tables = extract_tables(temp_pdf_path)
-                    #     if tables:
-                    #         print(f"  Extracted {len(tables)} tables from {file_item['name']}.")
-                    #         extracted_texts_summary.append(f"Successfully extracted {len(tables)} tables from: {file_item['name']}")
-                    #     else:
-                    #         print(f"  No tables extracted from {file_item['name']}.")
-                    #         extracted_texts_summary.append(f"No tables extracted from: {file_item['name']}")
-                    # except Exception as e_tables:
-                    #     print(f"  Error extracting tables from {file_item['name']}: {e_tables}")
-                    #     extracted_texts_summary.append(f"Error extracting tables from {file_item['name']}: {e_tables}")
-
-                    # try:
-                    #     llm_formatted_content = format_po_for_llm(blocks, tables)
-                    #     print(f"  Successfully formatted PO for LLM for {file_item['name']}.")
-                    #     extracted_texts_summary.append(f"Formatted PO for LLM for: {file_item['name']}")
-                    # except Exception as e:
-                    #     print(f"  Failed to format PO for LLM for {file_item['name']}: {e}")
-                    #     extracted_texts_summary.append(f"Failed to format PO for LLM for {file_item['name']}: {e}")
-                finally:
-                    # Clean up the temporary file
-                    if temp_pdf_path and os.path.exists(temp_pdf_path):
-                        print(f"  Deleting temporary file: {temp_pdf_path}")
-                        os.remove(temp_pdf_path)
-                # --- End of integration ---
-                
-                # # Original PyPDF2 text extraction (kept for comparison or basic dump)
-                # print(f"\\n  --- Attempting basic text extraction with PyPDF2 from {file_item['name']} ---")
-                # fh.seek(0) # Reset stream position for PdfReader
-                # pdf_reader = PdfReader(fh)
-                # text = ""
-                # for page_num, page in enumerate(pdf_reader.pages):
-                #     page_text = page.extract_text()
-                #     if page_text:
-                #         text += f"\\n--- Page {page_num + 1} ---\\n{page_text}"
-                
-                # if text.strip():
-                #     print(f"  Extracted basic text from {file_item['name']} (PyPDF2):\\n{text}\\n{'-'*80}")
-                #     extracted_texts_summary.append(f"Successfully extracted basic text (PyPDF2) from: {file_item['name']}")
-                # else:
-                #     no_text_message = f"  No basic text could be extracted (PyPDF2) from {file_item['name']} (it might be an image-based PDF or empty)."
-                #     print(f"{no_text_message}\\n{'-'*80}")
-                #     extracted_texts_summary.append(f"No basic text extracted (PyPDF2) from: {file_item['name']}")
-                # fh.close() # fh will be closed in the outer finally block
-
-            except Exception as e:
-                error_message = f"Error processing file {file_item['name']} (ID: {file_item['id']}): {e}"
-                print(f"{error_message}\\n{'-'*80}")
-                extracted_texts_summary.append(f"Error processing: {file_item['name']} - {e}")
             finally:
-                if fh: # Ensure fh is not None before trying to close
-                    fh.close()
-    
+                # Clean up the temporary file
+                if temp_pdf_path and os.path.exists(temp_pdf_path):
+                    print(f"  Deleting temporary file: {temp_pdf_path}")
+                    os.remove(temp_pdf_path)
+
+        except Exception as error:
+            error_message = f"Error processing file {file_item['name']} (ID: {file_item['id']}): {error}"
+            print(f"{error_message}\n{'-'*80}")
+            extracted_texts_summary.append(f"Error processing: {file_item['name']} - {error}")
+        finally:
+            if fh:
+                fh.close()
+        pdf_files_found = True
+
     print(f"Finished processing folder ID: {folder_id}\n")
 
     # --- Export and Forecast steps (like main.py) ---
