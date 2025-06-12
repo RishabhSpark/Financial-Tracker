@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 import os
@@ -43,6 +43,12 @@ class PaymentSchedule(Base):
     payment_date = Column(String)
     payment_amount = Column(Float)
     payment_description = Column(String, nullable=True)
+
+class DriveFile(Base):
+    __tablename__ = "drive_files"
+    id = Column(String, primary_key=True)  # Google Drive File ID
+    name = Column(String, index=True) # Indexing name can be useful for lookups
+    last_edited = Column(DateTime, nullable=True) # Using DateTime for last_edited
 
 def init_db():
     if not os.path.exists("po_database.db"):

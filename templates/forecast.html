@@ -19,16 +19,76 @@
     </style>
   </head>
   <body>
-    <h2>📄 Sync a Purchase Order from Google Drive</h2>
-    <form action="/sync" method="post">
-      <label for="file_id">Google Drive File ID:</label><br />
-      <input type="text" id="file_id" name="file_id" required /><br /><br />
-      <button type="submit">🔄 Sync PO</button>
-    </form>
-
-    <hr />
-
     <h2>📊 Forecast Pivot Table</h2>
+    <form method="get" action="/forecast" style="margin-bottom: 20px;">
+      <label for="client_name"><b>Client Name:</b></label>
+      <select name="client_name" id="client_name" multiple size="4">
+        {% for name in client_names %}
+          <option value="{{ name }}" {% if name in selected_client %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      &nbsp;&nbsp;
+      <label for="po_no"><b>PO No:</b></label>
+      <span id="po_no_checkboxes">
+        {% for po in po_nos %}
+          <label style="display: inline-block; margin-right: 10px;">
+            <input type="checkbox" name="po_no" value="{{ po }}" {% if po in selected_po %}checked{% endif %}> {{ po }}
+          </label>
+        {% endfor %}
+      </span>
+      &nbsp;&nbsp;
+      <label for="start_month"><b>Start Month:</b></label>
+      <input type="month" name="start_month" id="start_month" value="{{ selected_start_month[0] if selected_start_month else '' }}">
+      &nbsp;&nbsp;
+      <label for="end_month"><b>End Month:</b></label>
+      <input type="month" name="end_month" id="end_month" value="{{ selected_end_month[0] if selected_end_month else '' }}">
+      &nbsp;&nbsp;
+      <button type="submit">Apply Filters</button>
+      <button type="button" onclick="location.href='/refresh_charts'">Refresh Charts</button>
+      <button type="button" onclick="location.href='/download_xlsx'">Download XLSX</button>
+    </form>
     <div>{{ pivot_table | safe }}</div>
+    <script>
+      // Add edit buttons to each PO row if table is rendered
+      document.addEventListener('DOMContentLoaded', function() {
+        const table = document.querySelector('table');
+        if (table) {
+          const poNoIdx = Array.from(table.rows[0].cells).findIndex(cell => cell.textContent.trim() === 'PO No');
+          if (poNoIdx !== -1) {
+            // Add header for Edit
+            const th = document.createElement('th');
+            th.textContent = 'Edit';
+            table.rows[0].appendChild(th);
+            // Add edit button to each row
+            for (let i = 1; i < table.rows.length; i++) {
+              const poId = table.rows[i].cells[poNoIdx].textContent.trim();
+              const td = document.createElement('td');
+              const btn = document.createElement('a');
+              btn.textContent = 'Edit';
+              btn.href = '/edit_po/' + encodeURIComponent(poId);
+              btn.style = 'color: blue; text-decoration: underline; cursor: pointer;';
+              td.appendChild(btn);
+              table.rows[i].appendChild(td);
+            }
+          }
+        }
+      });
+      // On submit, collect all selected values for each filter and submit as comma-separated lists
+      const form = document.querySelector('form[action="/forecast"]');
+      form.addEventListener('submit', function(e) {
+        // PO No checkboxes
+        const poCheckboxes = form.querySelectorAll('input[name="po_no"]:checked');
+        let poValues = Array.from(poCheckboxes).map(cb => cb.value);
+        let existing = form.querySelector('input[type="hidden"][name="po_no"]');
+        if (existing) existing.remove();
+        if (poValues.length > 0) {
+          let hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = 'po_no';
+          hidden.value = poValues.join(',');
+          form.appendChild(hidden);
+        }
+      });
+    </script>
   </body>
 </html>

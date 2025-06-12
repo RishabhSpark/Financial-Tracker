@@ -77,23 +77,23 @@ def export_all_csvs(output_dir="output/"):
     
     # 1. Export purchase_orders.csv
     logger.debug("Exporting purchase_orders.csv")
-    df_po = pd.read_sql("SELECT id, po_id, client_name, amount, status, payment_terms, payment_type, start_date, end_date, duration_months FROM purchase_orders", engine)
+    df_po = pd.read_sql("SELECT po_id, client_name, amount, status, payment_terms, payment_type, start_date, end_date, duration_months FROM purchase_orders", engine)
     df_po.to_csv(os.path.join(output_dir, "purchase_orders.csv"), index=False)
 
     # 2. Export milestones.csv
     logger.debug("Exporting milestones.csv")
-    df_ms = pd.read_sql("SELECT id, po_id, milestone_name, milestone_description, milestone_due_date, milestone_percentage FROM milestones", engine)
+    df_ms = pd.read_sql("SELECT po_id, milestone_name, milestone_description, milestone_due_date, milestone_percentage FROM milestones", engine)
     df_ms.to_csv(os.path.join(output_dir, "milestones.csv"), index=False)
 
     # 3. Export distributed.csv
     logger.debug("Exporting distributed.csv")
-    df_sched = pd.read_sql("SELECT id, po_id, payment_date, payment_amount, payment_description FROM payment_schedule", engine)
+    df_sched = pd.read_sql("SELECT po_id, payment_date, payment_amount, payment_description FROM payment_schedule", engine)
     df_sched.to_csv(os.path.join(output_dir, "distributed.csv"), index=False)
 
     # 4. Export periodic.csv
     logger.debug("Exporting periodic.csv")
     df_periodic = pd.read_sql("""
-        SELECT id, po_id, start_date, end_date, payment_frequency
+        SELECT po_id, start_date, end_date, payment_frequency
         FROM purchase_orders
         WHERE payment_type = 'periodic'
     """, engine)
