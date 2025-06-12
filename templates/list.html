@@ -5,6 +5,7 @@
   </head>
   <body>
     <h2>Drive Files</h2>
+    <ul id="folderTree" class="tree mt-3"></ul>
     <ul>
       {% for file in files %}
       <li>
@@ -14,5 +15,29 @@
       </li>
       {% endfor %}
     </ul>
+    <script>
+      async function loadFolders() {
+        const res = await fetch("/folder");
+        const folders = await res.json();
+        const tree = document.getElementById("folderTree");
+        folders.forEach((folder) => {
+          const li = document.createElement("li");
+          li.innerHTML = `
+          📁 ${folder.name}
+          <button class="btn btn-sm btn-outline-primary ms-2" onclick="select('${folder.id}', '${folder.name}')">Select</button>
+        `;
+          tree.appendChild(li);
+        });
+      }
+
+      function select(id, name) {
+        alert("Selected folder: " + name + " (ID: " + id + ")");
+      }
+
+      // auto-fetch if already authenticated
+      fetch("/folder").then((res) => {
+        if (res.ok) res.json().then(loadFolders);
+      });
+    </script>
   </body>
 </html>

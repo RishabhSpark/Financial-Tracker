@@ -2,33 +2,124 @@
 <html>
   <head>
     <title>PO Sync Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+      crossorigin="anonymous"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
     <style>
+      /* Your existing custom styles (retained) */
       .table {
-        border-collapse: collapse;
-        width: 100%;
+        border-collapse: collapse; /* Bootstrap's default often handles this */
+        width: 100%; /* Bootstrap's default handles this */
       }
       .table th,
       .table td {
-        border: 1px solid #ddd;
+        border: 1px solid #ddd; /* Bootstrap's table-bordered can do this */
         padding: 8px;
         text-align: center;
       }
       th {
-        background-color: #f2f2f2;
+        background-color: #f2f2f2; /* This will be overridden by table-dark */
+      }
+      .folder-tree ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+      .folder-tree li {
+        margin-bottom: 5px;
+      }
+      .folder-item {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+      }
+      .folder-item.folder:before {
+        content: "📁"; /* Folder icon */
+        margin-right: 5px;
+      }
+      .folder-item.file:before {
+        content: "📄"; /* File icon */
+        margin-right: 5px;
+      }
+      .folder-item.folder.expanded:before {
+        content: "📂"; /* Open folder icon */
+      }
+      .folder-children {
+        display: none; /* Hide children by default */
+      }
+      .folder-children.show {
+        display: block; /* Show children when expanded */
+      }
+      .folder-button {
+        margin-left: 10px;
+      }
+      .selected-folder {
+        background-color: #e0f7fa; /* Light blue for selected folder */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      .spinner-border {
+        width: 1.5rem;
+        height: 1.5rem;
+        vertical-align: middle;
+        margin-left: 10px;
       }
     </style>
   </head>
   <body>
-    <h2>📄 Sync a Purchase Order from Google Drive</h2>
-    <form action="/sync" method="post">
-      <label for="file_id">Google Drive File ID:</label><br />
-      <input type="text" id="file_id" name="file_id" required /><br /><br />
-      <button type="submit">🔄 Sync PO</button>
-    </form>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container-fluid">
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-end"
+          id="navbarNav"
+        >
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a
+                class="nav-link btn btn-outline-light ms-2"
+                href="{{ url_for('logout') }}"
+                aria-current="page"
+              >
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
 
-    <hr />
-
-    <h2>📊 Forecast Pivot Table</h2>
-    <div>{{ pivot_table | safe }}</div>
+    <div class="container mt-4">
+      <h2 class="mb-3">📊 Forecast Pivot Table</h2>
+      <a href="/download-forecast" class="btn btn-primary" download>
+        ⬇️ Download Forecast Excel
+      </a>
+      <div class="table-responsive">
+        <table class="table table-dark table-striped">
+          {{ pivot_table | safe }}
+        </table>
+      </div>
+    </div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+      crossorigin="anonymous"
+    ></script>
   </body>
 </html>

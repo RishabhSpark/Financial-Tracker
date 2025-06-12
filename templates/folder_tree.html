@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Drive Folder Tree</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      ul.tree,
+      ul.tree ul {
+        list-style-type: none;
+      }
+      ul.tree {
+        padding-left: 1rem;
+      }
+      ul.tree ul {
+        margin-left: 1rem;
+        display: none;
+      }
+      ul.tree .folder-name {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body class="p-4">
+    <h3>Drive Folder Tree</h3>
+    <ul id="folderTree" class="tree mt-3"></ul>
+    <div id="selectedPath" class="mt-3 fw-bold text-success"></div>
+
+    <script>
+      function loadFolders(
+        parentId = "root",
+        parentEl = document.getElementById("folderTree"),
+        path = ""
+      ) {
+        fetch(`/get_folders?parent=${parentId}`)
+          .then((res) => res.json())
+          .then((folders) => {
+            folders.forEach((folder) => {
+              const li = document.createElement("li");
+              const fullPath = path ? path + "/" + folder.name : folder.name;
+              li.innerHTML = `
+            <span class="folder-name" onclick="toggle(this)">📁 ${folder.name}</span>
+            <button class="btn btn-sm btn-outline-primary ms-2" onclick="selectFolder('${fullPath}', '${folder.id}')">Select</button>
+            <ul></ul>
+          `;
+              parentEl.appendChild(li);
+
+              // Preload subfolders (optional lazy loading)
+              const subUl = li.querySelector("ul");
+              li.querySelector(".folder-name").addEventListener("click", () => {
+                if (!subUl.hasChildNodes()) {
+                  loadFolders(folder.id, subUl, fullPath);
+                }
+              });
+            });
+          });
+      }
+
+      function toggle(el) {
+        const subUl = el.parentElement.querySelector("ul");
+        subUl.style.display = subUl.style.display === "none" ? "block" : "none";
+      }
+
+      function selectFolder(path, id) {
+        document.getElementById(
+          "selectedPath"
+        ).innerText = `Selected Path: ${path} (ID: ${id})`;
+
+        fetch(`/get_pdfs?folder_id=${id}`)
+          .then((res) => res.json())
+          .then((pdfs) => {
+            const container =
+              document.getElementById("pdfList") || createPdfListContainer();
+            container.innerHTML = "";
+
+            if (pdfs.length === 0) {
+              container.innerHTML = `<p class="text-muted">No PDFs found in this folder.</p>`;
+              return;
+            }
+
+            pdfs.forEach((pdf) => {
+              const link = document.createElement("a");
+              link.href = pdf.webViewLink;
+              link.target = "_blank";
+              link.className = "d-block mb-1";
+              link.textContent = `📄 ${pdf.name}`;
+              container.appendChild(link);
+            });
+          })
+          .catch((err) => {
+            alert("Error loading PDFs: " + err);
+          });
+      }
+
+      function createPdfListContainer() {
+        const container = document.createElement("div");
+        container.id = "pdfList";
+        container.className = "mt-3";
+        document.body.appendChild(container);
+        return container;
+      }
+
+      // Load root folders on page load
+      loadFolders();
+    </script>
+  </body>
+</html>
