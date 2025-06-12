@@ -1,4 +1,4 @@
 po_id,client_name,amount,status,payment_terms,payment_type,start_date,end_date,duration_months
-34523,Fiona Inc,80000.0,Confirmed,30,milestone,01-04-2025,31-12-2025,
+34523,Papil .co,80000.0,Confirmed,32,distributed,01-04-2025,31-12-2025,24.0
 1234567345,Fiona Inc,80000.0,Confirmed,60,periodic,01-06-2025,31-08-2026,
-1234567890,Fiona Inc,80000.0,Confirmed,90,distributed,10-04-2025,31-12-2025,
+1234567890,Papil,87346.0,Confirmed,90,periodic,10-04-2024,10-04-2026,24.0
