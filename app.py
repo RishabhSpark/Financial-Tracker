@@ -575,7 +575,7 @@ def list_all_files_in_folder(service, folder_id):
                 files.append({
                     'id': file['id'],
                     'name': file['name'],
-                    'mimeType': file['mimeType'],  # Ensure mimeType is included
+                    'mimeType': file['mimeType'],
                     'modifiedTime': file.get('modifiedTime', '')
                 })
         page_token = response.get('nextPageToken', None)
@@ -642,6 +642,8 @@ def extract_text_from_drive_folder():
         if file_item.get('mimeType') == 'application/pdf':
             pdf_files_found = True
             print(f"Processing PDF: {file_item['name']} (ID: {file_item['id']})")
+            fh = None  # Initialize fh to None
+            temp_pdf_path = None  # Initialize temp_pdf_path to None
             try:
                 request_file = service.files().get_media(fileId=file_item['id'])
                 fh = io.BytesIO()
@@ -651,6 +653,64 @@ def extract_text_from_drive_folder():
                     status, done = downloader.next_chunk()
                 
                 fh.seek(0)
+
+                # --- Integration of extract_blocks and extract_tables ---
+                try:
+                    # Create a temporary file to save the PDF content
+                    temp_dir = tempfile.gettempdir()
+                    # Generate a unique filename to avoid conflicts if multiple requests happen concurrently
+                    temp_pdf_filename = f"temp_drive_pdf_{file_item['id']}_{os.urandom(4).hex()}.pdf";
+                    temp_pdf_path = os.path.join(temp_dir, temp_pdf_filename)
+
+                    with open(temp_pdf_path, 'wb') as f_temp:
+                        f_temp.write(fh.getvalue())
+                    
+                    print(f"  PDF content for {file_item['name']} saved to temporary file: {temp_pdf_path}")
+
+                    # 1. Extract text blocks using PyMuPDF (fitz)
+                    print(f"\\n  --- Attempting to extract blocks from {file_item['name']} ---")
+                    try:
+                        blocks = extract_blocks(temp_pdf_path)
+                        if blocks:
+                            print(f"  Extracted {len(blocks)} blocks from {file_item['name']}:")
+                            for i, block_text in enumerate(blocks):
+                                print(f"    Block {i+1} (first 100 chars): {block_text[:100].replace(chr(10), ' ')}...")
+                            extracted_texts_summary.append(f"Successfully extracted {len(blocks)} blocks from: {file_item['name']}")
+                        else:
+                            print(f"  No text blocks extracted from {file_item['name']}.")
+                            extracted_texts_summary.append(f"No blocks extracted from: {file_item['name']}")
+                    except Exception as e_blocks:
+                        print(f"  Error extracting blocks from {file_item['name']}: {e_blocks}")
+                        extracted_texts_summary.append(f"Error extracting blocks from {file_item['name']}: {e_blocks}")
+
+                    # 2. Extract tables using pdfplumber
+                    print(f"\\n  --- Attempting to extract tables from {file_item['name']} ---")
+                    try:
+                        tables = extract_tables(temp_pdf_path)
+                        if tables:
+                            print(f"  Extracted {len(tables)} tables from {file_item['name']}:")
+                            for i, table_data in enumerate(tables):
+                                print(f"    Table {i+1} with {len(table_data)} rows.")
+                                if table_data and table_data[0]: # Check if table has rows and first row exists
+                                    print(f"Table {i+1} - First row (first 3 cells, max 20 chars each): {[str(cell)[:20] if cell is not None else '' for cell in table_data[0][:3]]}")
+                            extracted_texts_summary.append(f"Successfully extracted {len(tables)} tables from: {file_item['name']}")
+                        else:
+                            print(f"  No tables extracted from {file_item['name']}.")
+                            extracted_texts_summary.append(f"No tables extracted from: {file_item['name']}")
+                    except Exception as e_tables:
+                        print(f"  Error extracting tables from {file_item['name']}: {e_tables}")
+                        extracted_texts_summary.append(f"Error extracting tables from {file_item['name']}: {e_tables}")
+
+                finally:
+                    # Clean up the temporary file
+                    if temp_pdf_path and os.path.exists(temp_pdf_path):
+                        print(f"  Deleting temporary file: {temp_pdf_path}")
+                        os.remove(temp_pdf_path)
+                # --- End of integration ---
+                
+                # Original PyPDF2 text extraction (kept for comparison or basic dump)
+                print(f"\\n  --- Attempting basic text extraction with PyPDF2 from {file_item['name']} ---")
+                fh.seek(0) # Reset stream position for PdfReader
                 pdf_reader = PdfReader(fh)
                 text = ""
                 for page_num, page in enumerate(pdf_reader.pages):
@@ -659,18 +719,21 @@ def extract_text_from_drive_folder():
                         text += f"\\n--- Page {page_num + 1} ---\\n{page_text}"
                 
                 if text.strip():
-                    print(f"Extracted text from {file_item['name']}:\\n{text}\\n{'-'*80}")
-                    extracted_texts_summary.append(f"Successfully extracted text from: {file_item['name']}")
+                    print(f"  Extracted basic text from {file_item['name']} (PyPDF2):\\n{text}\\n{'-'*80}")
+                    extracted_texts_summary.append(f"Successfully extracted basic text (PyPDF2) from: {file_item['name']}")
                 else:
-                    no_text_message = f"No text could be extracted from {file_item['name']} (it might be an image-based PDF or empty)."
+                    no_text_message = f"  No basic text could be extracted (PyPDF2) from {file_item['name']} (it might be an image-based PDF or empty)."
                     print(f"{no_text_message}\\n{'-'*80}")
-                    extracted_texts_summary.append(f"No text extracted from: {file_item['name']}")
-                fh.close()
+                    extracted_texts_summary.append(f"No basic text extracted (PyPDF2) from: {file_item['name']}")
+                # fh.close() # fh will be closed in the outer finally block
 
             except Exception as e:
                 error_message = f"Error processing file {file_item['name']} (ID: {file_item['id']}): {e}"
                 print(f"{error_message}\\n{'-'*80}")
                 extracted_texts_summary.append(f"Error processing: {file_item['name']} - {e}")
+            finally:
+                if fh: # Ensure fh is not None before trying to close
+                    fh.close()
     
     print(f"Finished processing folder ID: {folder_id}\\n")
     
