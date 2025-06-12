@@ -338,8 +338,19 @@ def generate_pivot_table_html(df=None):
         pivot = pivot.reindex(columns=all_months_for_pivot, fill_value=0.0)
         pivot.reset_index(inplace=True)
 
+        # Format month columns to 'Month YYYY' (e.g., 'May 2025')
+        month_col_map = {}
+        for m in all_months_for_pivot:
+            try:
+                dt = pd.to_datetime(m, format="%Y-%m")
+                month_col_map[m] = dt.strftime("%b %Y")
+            except Exception:
+                month_col_map[m] = m
+        pivot.rename(columns=month_col_map, inplace=True)
+        formatted_month_cols = [month_col_map.get(m, m) for m in all_months_for_pivot]
+
         # Add row-wise total (sum across months for each PO)
-        month_cols = all_months_for_pivot
+        month_cols = formatted_month_cols
         if month_cols:
             pivot['Total'] = pivot[month_cols].sum(axis=1)
         else:
@@ -795,7 +806,7 @@ def extract_text_from_drive_folder():
             temp_pdf_path = None
             try:
                 # Create a temporary file to save the PDF content
-                temp_dir = tempfile.gettempdir()
+                temp_dir = tempfile.gettempdir();
                 # Generate a unique filename to avoid conflicts if multiple requests happen concurrently
                 temp_pdf_filename = f"temp_drive_pdf_{file_item['id']}_{os.urandom(4).hex()}.pdf"
                 temp_pdf_path = os.path.join(temp_dir, temp_pdf_filename);
