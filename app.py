@@ -396,7 +396,7 @@ def drive_tree():
         #confirm-folder-btn { margin-top: 10px; font-size: 1em; padding: 6px 16px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         #confirm-folder-btn:disabled { background: #aaa; cursor: not-allowed; }
         #result-table { margin-top: 30px; }
-        #go-to-dashboard-btn { margin-left: 10px; font-size: 1em; padding: 6px 16px; background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
+        #go-to-dashboard-btn { margin-left: 10px, font-size: 1em, padding: 6px 16px, background: #28a745, color: #fff, border: none, border-radius: 4px, cursor: pointer, text-decoration: none, display: inline-block; }
         </style>
         </head>
         <body>
@@ -470,7 +470,74 @@ def drive_tree():
                 if (html) { // Only process if not redirected
                     document.getElementById('result-table').innerHTML = html;
                     // Show the "Go to Forecast/Dashboard" button after successful confirmation
-                    document.getElementById('go-to-dashboard-btn').style.display = 'inline-block';
+                    var dashboardBtn = document.getElementById('go-to-dashboard-btn');
+                    dashboardBtn.style.display = 'block'; // Ensure it's block for layout
+                    dashboardBtn.style.marginTop = '10px';
+
+
+                    // ---- NEW CODE INTEGRATION START ----
+                    // Remove existing extract button and result div if any, to prevent duplicates on re-confirm
+                    let existingExtractBtn = document.getElementById('extract-pdf-text-btn');
+                    if (existingExtractBtn) existingExtractBtn.remove();
+                    let existingExtractResultDiv = document.getElementById('extract-pdf-result-div');
+                    if (existingExtractResultDiv) existingExtractResultDiv.remove();
+
+                    var extractButton = document.createElement('button');
+                    extractButton.id = 'extract-pdf-text-btn';
+                    extractButton.textContent = 'Extract Text from PDFs in this Folder';
+                    extractButton.style.display = 'block';
+                    extractButton.style.marginTop = '10px';
+                    extractButton.style.padding = '6px 16px'; // Basic styling
+                    extractButton.style.backgroundColor = '#17a2b8'; // Info color
+                    extractButton.style.color = 'white';
+                    extractButton.style.border = 'none';
+                    extractButton.style.borderRadius = '4px';
+                    extractButton.style.cursor = 'pointer';
+
+
+                    var extractResultDisplayDiv = document.createElement('div');
+                    extractResultDisplayDiv.id = 'extract-pdf-result-div';
+                    extractResultDisplayDiv.style.marginTop = '10px';
+                    extractResultDisplayDiv.style.padding = '10px';
+                    extractResultDisplayDiv.style.border = '1px solid #eee';
+                    extractResultDisplayDiv.style.backgroundColor = '#f9f9f9';
+
+
+                    extractButton.onclick = function() {
+                        this.disabled = true;
+                        this.textContent = 'Extracting...';
+                        this.style.backgroundColor = '#aaa';
+                        var currentFolderId = document.getElementById('selected-folder-input').getAttribute('data-folder-id');
+                        if (!currentFolderId) {
+                            extractResultDisplayDiv.innerHTML = '<p style="color:red;">Error: Folder ID not found. Please select a folder again.</p>';
+                            this.disabled = false;
+                            this.textContent = 'Extract Text from PDFs in this Folder';
+                            this.style.backgroundColor = '#17a2b8';
+                            return;
+                        }
+
+                        fetch('/extract_text_from_drive_folder?folder_id=' + currentFolderId)
+                            .then(response => response.text())
+                            .then(resultHtml => {
+                                extractResultDisplayDiv.innerHTML = resultHtml;
+                                this.disabled = false;
+                                this.textContent = 'Extract Text from PDFs in this Folder';
+                                this.style.backgroundColor = '#17a2b8';
+                            })
+                            .catch(error => {
+                                console.error('Error extracting PDF text:', error);
+                                extractResultDisplayDiv.innerHTML = '<p style="color:red;">Error during PDF text extraction. Check console and terminal.</p>';
+                                this.disabled = false;
+                                this.textContent = 'Extract Text from PDFs in this Folder';
+                                this.style.backgroundColor = '#17a2b8';
+                            });
+                    };
+
+                    // Insert the new button before the dashboard button
+                    dashboardBtn.parentNode.insertBefore(extractButton, dashboardBtn);
+                    // Insert the result display div after the new button
+                    extractButton.insertAdjacentElement('afterend', extractResultDisplayDiv);
+                    // ---- NEW CODE INTEGRATION END ----
                 }
                 btn.disabled = false;
                 btn.textContent = 'Confirm Folder';
@@ -508,6 +575,7 @@ def list_all_files_in_folder(service, folder_id):
                 files.append({
                     'id': file['id'],
                     'name': file['name'],
+                    'mimeType': file['mimeType'],  # Ensure mimeType is included
                     'modifiedTime': file.get('modifiedTime', '')
                 })
         page_token = response.get('nextPageToken', None)
@@ -543,6 +611,77 @@ def confirm_folder():
         return f"<p>Error updating database: {e}</p>", 500
     return render_files_table(files)
 
+
+@app.route('/extract_text_from_drive_folder')
+def extract_text_from_drive_folder():
+    if 'credentials' not in session:
+        return redirect(url_for('authorize'))
+
+    folder_id = request.args.get('folder_id')
+    if not folder_id:
+        return "Please provide a 'folder_id' query parameter.", 400
+
+    creds = Credentials.from_authorized_user_info(session['credentials'])
+    service = build('drive', 'v3', credentials=creds)
+
+    try:
+        # Check if the folder_id is valid by trying to get its metadata
+        folder_metadata = service.files().get(fileId=folder_id, fields="id, name, mimeType").execute()
+        if folder_metadata.get('mimeType') != 'application/vnd.google-apps.folder':
+            return f"The provided ID '{folder_id}' is not a folder.", 400
+        print(f"Accessing folder: {folder_metadata.get('name')} (ID: {folder_id})")
+    except Exception as e:
+        return f"Invalid folder_id or error accessing folder: {e}", 400
+
+    all_files_in_folder = list_all_files_in_folder(service, folder_id)
+    pdf_files_found = False
+    extracted_texts_summary = []
+
+    print(f"\\nStarting PDF text extraction for folder ID: {folder_id}")
+    for file_item in all_files_in_folder:
+        if file_item.get('mimeType') == 'application/pdf':
+            pdf_files_found = True
+            print(f"Processing PDF: {file_item['name']} (ID: {file_item['id']})")
+            try:
+                request_file = service.files().get_media(fileId=file_item['id'])
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, request_file)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+                
+                fh.seek(0)
+                pdf_reader = PdfReader(fh)
+                text = ""
+                for page_num, page in enumerate(pdf_reader.pages):
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += f"\\n--- Page {page_num + 1} ---\\n{page_text}"
+                
+                if text.strip():
+                    print(f"Extracted text from {file_item['name']}:\\n{text}\\n{'-'*80}")
+                    extracted_texts_summary.append(f"Successfully extracted text from: {file_item['name']}")
+                else:
+                    no_text_message = f"No text could be extracted from {file_item['name']} (it might be an image-based PDF or empty)."
+                    print(f"{no_text_message}\\n{'-'*80}")
+                    extracted_texts_summary.append(f"No text extracted from: {file_item['name']}")
+                fh.close()
+
+            except Exception as e:
+                error_message = f"Error processing file {file_item['name']} (ID: {file_item['id']}): {e}"
+                print(f"{error_message}\\n{'-'*80}")
+                extracted_texts_summary.append(f"Error processing: {file_item['name']} - {e}")
+    
+    print(f"Finished processing folder ID: {folder_id}\\n")
+    
+    if not pdf_files_found:
+        message = f"No PDF files found in the specified folder '{folder_metadata.get('name')}' (ID: {folder_id})."
+        print(message)
+        return message
+    else:
+        response_message = f"PDF text extraction process initiated for folder '{folder_metadata.get('name')}' (ID: {folder_id}). Check your terminal for output. Summary of processed files:<br>"
+        response_message += "<br>".join(extracted_texts_summary)
+        return response_message
 
 if __name__ == '__main__':
     init_db()
