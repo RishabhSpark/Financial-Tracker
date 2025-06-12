@@ -21,37 +21,27 @@
   <body>
     <h2>📊 Forecast Pivot Table</h2>
     <form method="get" action="/forecast" style="margin-bottom: 20px;">
-      <label for="client_name">Client Name:</label>
-      <select name="client_name" id="client_name">
-        <option value="">All</option>
+      <label for="client_name"><b>Client Name:</b></label>
+      <select name="client_name" id="client_name" multiple size="4">
         {% for name in client_names %}
-          <option value="{{ name }}" {% if name == selected_client %}selected{% endif %}>{{ name }}</option>
+          <option value="{{ name }}" {% if name in selected_client %}selected{% endif %}>{{ name }}</option>
         {% endfor %}
       </select>
       &nbsp;&nbsp;
-      <label for="po_no">PO No:</label>
-      <select name="po_no" id="po_no">
-        <option value="">All</option>
+      <label for="po_no"><b>PO No:</b></label>
+      <span id="po_no_checkboxes">
         {% for po in po_nos %}
-          <option value="{{ po }}" {% if po == selected_po %}selected{% endif %}>{{ po }}</option>
+          <label style="display: inline-block; margin-right: 10px;">
+            <input type="checkbox" name="po_no" value="{{ po }}" {% if po in selected_po %}checked{% endif %}> {{ po }}
+          </label>
         {% endfor %}
-      </select>
+      </span>
       &nbsp;&nbsp;
-      <label for="start_month">Start Month:</label>
-      <select name="start_month" id="start_month">
-        <option value="">Any</option>
-        {% for m in months %}
-          <option value="{{ m }}" {% if m == selected_start_month %}selected{% endif %}>{{ m }}</option>
-        {% endfor %}
-      </select>
+      <label for="start_month"><b>Start Month:</b></label>
+      <input type="month" name="start_month" id="start_month" value="{{ selected_start_month[0] if selected_start_month else '' }}">
       &nbsp;&nbsp;
-      <label for="end_month">End Month:</label>
-      <select name="end_month" id="end_month">
-        <option value="">Any</option>
-        {% for m in months %}
-          <option value="{{ m }}" {% if m == selected_end_month %}selected{% endif %}>{{ m }}</option>
-        {% endfor %}
-      </select>
+      <label for="end_month"><b>End Month:</b></label>
+      <input type="month" name="end_month" id="end_month" value="{{ selected_end_month[0] if selected_end_month else '' }}">
       &nbsp;&nbsp;
       <button type="submit">Apply Filters</button>
       <button type="button" onclick="location.href='/refresh_charts'">Refresh Charts</button>
@@ -81,6 +71,22 @@
               table.rows[i].appendChild(td);
             }
           }
+        }
+      });
+      // On submit, collect all selected values for each filter and submit as comma-separated lists
+      const form = document.querySelector('form[action="/forecast"]');
+      form.addEventListener('submit', function(e) {
+        // PO No checkboxes
+        const poCheckboxes = form.querySelectorAll('input[name="po_no"]:checked');
+        let poValues = Array.from(poCheckboxes).map(cb => cb.value);
+        let existing = form.querySelector('input[type="hidden"][name="po_no"]');
+        if (existing) existing.remove();
+        if (poValues.length > 0) {
+          let hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = 'po_no';
+          hidden.value = poValues.join(',');
+          form.appendChild(hidden);
         }
       });
     </script>

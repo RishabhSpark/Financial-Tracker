@@ -188,11 +188,18 @@ def download_pdf(file_id):
 
 @app.route("/forecast", methods=["GET"])
 def forecast():
-    # Get filter values from query params
-    client_name = request.args.get('client_name', default=None, type=str)
-    po_no = request.args.get('po_no', default=None, type=str)
-    start_month = request.args.get('start_month', default=None, type=str)
-    end_month = request.args.get('end_month', default=None, type=str)
+    # Get filter values from query params (support multi-select)
+    def parse_checklist(param):
+        val = request.args.get(param, default=None, type=str)
+        if val is None or val == '':
+            return []
+        return [v.strip() for v in val.split(",") if v.strip()]
+
+    client_names_selected = parse_checklist('client_name')
+    po_nos_selected = parse_checklist('po_no')
+    # For months, use single value from <input type='month'>
+    start_month_selected = request.args.get('start_month', default=None, type=str)
+    end_month_selected = request.args.get('end_month', default=None, type=str)
 
     df = None
     try:
@@ -207,16 +214,16 @@ def forecast():
     po_nos = sorted([str(po) for po in df['PO No'].dropna().unique()]) if 'PO No' in df.columns else []
     months = sorted(df['Month'].dropna().unique()) if 'Month' in df.columns else []
 
-    # Apply filters
+    # Apply filters (multi-select for client/po, range for months)
     filtered_df = df.copy()
-    if client_name:
-        filtered_df = filtered_df[filtered_df['Client Name'] == client_name]
-    if po_no:
-        filtered_df = filtered_df[filtered_df['PO No'].astype(str) == po_no]
-    if start_month:
-        filtered_df = filtered_df[filtered_df['Month'] >= start_month]
-    if end_month:
-        filtered_df = filtered_df[filtered_df['Month'] <= end_month]
+    if client_names_selected:
+        filtered_df = filtered_df[filtered_df['Client Name'].isin(client_names_selected)]
+    if po_nos_selected:
+        filtered_df = filtered_df[filtered_df['PO No'].astype(str).isin(po_nos_selected)]
+    if start_month_selected:
+        filtered_df = filtered_df[filtered_df['Month'] >= start_month_selected]
+    if end_month_selected:
+        filtered_df = filtered_df[filtered_df['Month'] <= end_month_selected]
 
     # Generate filtered pivot table
     pivot_html = generate_pivot_table_html(filtered_df)
@@ -227,10 +234,10 @@ def forecast():
         client_names=client_names,
         po_nos=po_nos,
         months=months,
-        selected_client=client_name,
-        selected_po=po_no,
-        selected_start_month=start_month,
-        selected_end_month=end_month
+        selected_client=client_names_selected,
+        selected_po=po_nos_selected,
+        selected_start_month=[start_month_selected] if start_month_selected else [],
+        selected_end_month=[end_month_selected] if end_month_selected else []
     )
 
 

@@ -1,5 +1,4 @@
 po_id,milestone_name,milestone_description,milestone_due_date,milestone_percentage
-34523,initial,None,None,20.0
-34523,milestone_1,None,None,20.0
-34523,milestone_2,None,None,20.0
-34523,final_deliverable,None,None,40.0
+34523,initial,,,20.0
+34523,milestone_1,,,40.0
+34523,milestone_2,,,40.0
