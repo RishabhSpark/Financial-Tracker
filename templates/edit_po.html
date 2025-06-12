@@ -28,7 +28,7 @@
             <input type="number" name="payment_terms" value="{{ po['payment_terms'] }}">
         </div>
         <div class="form-group">
-            <label>Payment Type:</label>
+            <label>Payment Schedule:</label>
             <select name="payment_type" id="payment_type">
                 <option value="milestone" {% if po['payment_type'] == 'milestone' %}selected{% endif %}>Milestone</option>
                 <option value="distributed" {% if po['payment_type'] == 'distributed' %}selected{% endif %}>Distributed</option>
@@ -65,7 +65,7 @@
                 <div class="milestone-entry">
                     <input type="text" name="milestone_name" placeholder="Name" value="{{ ms['milestone_name'] }}" required>
                     <input type="text" name="milestone_description" placeholder="Description" value="{{ ms['milestone_description'] }}">
-                    <input type="text" name="milestone_due_date" placeholder="Due Date" value="{{ ms['milestone_due_date'] }}">
+                    <input type="text" name="milestone_due_date" placeholder="Invoice Date" value="{{ ms['milestone_due_date'] }}">
                     <input type="number" step="0.01" name="milestone_percentage" placeholder="%" value="{{ ms['milestone_percentage'] }}" required>
                     <button type="button" onclick="removeMilestone(this)">Remove</button>
                 </div>
@@ -121,7 +121,7 @@
         div.innerHTML = `
             <input type="text" name="milestone_name" placeholder="Name" required>
             <input type="text" name="milestone_description" placeholder="Description">
-            <input type="text" name="milestone_due_date" placeholder="Due Date">
+            <input type="text" name="milestone_due_date" placeholder="Invoice Date">
             <input type="number" step="0.01" name="milestone_percentage" placeholder="%" required>
             <button type="button" onclick="removeMilestone(this)">Remove</button>
         `;
