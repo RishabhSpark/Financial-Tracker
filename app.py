@@ -9,7 +9,7 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
-from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id
+from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
 from db.database import init_db
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string
 from extractor.pdf_processing.extract_blocks import extract_blocks
@@ -776,6 +776,59 @@ def extract_text_from_drive_folder():
         response_message = f"PDF text extraction process initiated for folder '{folder_metadata.get('name')}' (ID: {folder_id}). Check your terminal for output. Summary of processed files:<br>"
         response_message += "<br>".join(extracted_texts_summary)
         return response_message
+
+@app.route('/edit_po/<po_id>', methods=['GET', 'POST'])
+def edit_po(po_id):
+    if request.method == 'POST':
+        # Collect updated fields from the form
+        po_data = {
+            'po_id': po_id,
+            'client_name': request.form.get('client_name'),
+            'amount': request.form.get('amount'),
+            'status': request.form.get('status'),
+            'payment_terms': request.form.get('payment_terms'),
+            'payment_type': request.form.get('payment_type'),
+            'start_date': request.form.get('start_date'),
+            'end_date': request.form.get('end_date'),
+            'duration_months': request.form.get('duration_months'),
+            'payment_frequency': request.form.get('payment_frequency'),
+        }
+        # Handle milestones and payment_schedule
+        if po_data['payment_type'] == 'milestone':
+            milestones = []
+            names = request.form.getlist('milestone_name')
+            descs = request.form.getlist('milestone_description')
+            dues = request.form.getlist('milestone_due_date')
+            pers = request.form.getlist('milestone_percentage')
+            for n, d, due, p in zip(names, descs, dues, pers):
+                milestones.append({
+                    'milestone_name': n,
+                    'milestone_description': d,
+                    'milestone_due_date': due,
+                    'milestone_percentage': p
+                })
+            po_data['milestones'] = milestones
+        elif po_data['payment_type'] == 'distributed':
+            schedule = []
+            dates = request.form.getlist('payment_date')
+            amounts = request.form.getlist('payment_amount')
+            descs = request.form.getlist('payment_description')
+            for dt, amt, desc in zip(dates, amounts, descs):
+                schedule.append({
+                    'payment_date': dt,
+                    'payment_amount': amt,
+                    'payment_description': desc
+                })
+            po_data['payment_schedule'] = schedule
+        # Save changes
+        insert_or_replace_po(po_data)
+        return redirect(url_for('forecast'))
+
+    # GET: Show form with current PO data
+    po = get_po_with_schedule(po_id)
+    if not po:
+        return f"<p>PO with ID {po_id} not found.</p>"
+    return render_template('edit_po.html', po=po)
 
 if __name__ == '__main__':
     init_db()

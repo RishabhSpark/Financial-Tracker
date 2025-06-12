@@ -56,5 +56,31 @@
       <button type="submit">Apply Filters</button>
     </form>
     <div>{{ pivot_table | safe }}</div>
+    <script>
+      // Add edit buttons to each PO row if table is rendered
+      document.addEventListener('DOMContentLoaded', function() {
+        const table = document.querySelector('table');
+        if (table) {
+          const poNoIdx = Array.from(table.rows[0].cells).findIndex(cell => cell.textContent.trim() === 'PO No');
+          if (poNoIdx !== -1) {
+            // Add header for Edit
+            const th = document.createElement('th');
+            th.textContent = 'Edit';
+            table.rows[0].appendChild(th);
+            // Add edit button to each row
+            for (let i = 1; i < table.rows.length; i++) {
+              const poId = table.rows[i].cells[poNoIdx].textContent.trim();
+              const td = document.createElement('td');
+              const btn = document.createElement('a');
+              btn.textContent = 'Edit';
+              btn.href = '/edit_po/' + encodeURIComponent(poId);
+              btn.style = 'color: blue; text-decoration: underline; cursor: pointer;';
+              td.appendChild(btn);
+              table.rows[i].appendChild(td);
+            }
+          }
+        }
+      });
+    </script>
   </body>
 </html>
