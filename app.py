@@ -14,7 +14,6 @@ from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
 from extractor.pdf_processing.format_po import format_po_for_llm
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string, jsonify, flash, g
-# from auth_utils import login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -159,35 +158,6 @@ def get_pdfs():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# @app.route('/read_pdf/<file_id>')
-# def read_pdf(file_id):
-#     if 'credentials' not in session:
-#         return redirect(url_for('authorize'))
-
-#     creds = Credentials.from_authorized_user_info(session['credentials'])
-#     service = build('drive', 'v3', credentials=creds)
-
-#     file = service.files().get(fileId=file_id, fields='name, mimeType').execute()
-#     if file['mimeType'] != 'application/pdf':
-#         return "<p>❌ Only PDF files are supported.</p>"
-
-#     request_drive = service.files().get_media(fileId=file_id)
-#     fh = io.BytesIO()
-#     downloader = MediaIoBaseDownload(fh, request_drive)
-
-#     done = False
-#     while not done:
-#         status, done = downloader.next_chunk()
-
-#     fh.seek(0)
-    # return fh
-    # text = ""
-    # with pdfplumber.open(fh) as pdf:
-    #     for page in pdf.pages:
-    #         text += page.extract_text() or ""
-
-    # return f"<pre>{text}</pre>"
-
 
 @app.route('/process_pdf/<file_id>')
 @login_required
@@ -223,7 +193,6 @@ def process_pdf(file_id):
 
             llm_formatted_content = format_po_for_llm(text_blocks, tables)
 
-        # TODO: Return `llm_formatted_content` as string that can be passed as prompt to LLM
             return f"""
             <h1>Processed PDF: {file['name']}</h1>
             <h2>LLM Formatted Content (for direct use):</h2>
@@ -278,10 +247,9 @@ def sync_file():
     file_id_or_path = request.form.get("file_path", "").strip()
 
     try:
-        # Get file metadata
+
         file = service.files().get(fileId=file_id_or_path, fields="name, mimeType").execute()
 
-        # Check PDF
         if file['mimeType'] != 'application/pdf':
             return "<p>❌ Only PDF files are supported.</p>"
 
@@ -292,14 +260,12 @@ def sync_file():
         while not done:
             _, done = downloader.next_chunk()
 
-        # Move to start of file and read content
         fh.seek(0)
         pdf_reader = PdfReader(fh)
         text = ""
         for page in pdf_reader.pages:
             text += page.extract_text() or ""
 
-        # Use existing pipeline to extract and store
         po_json = run_pipeline(text)
         insert_or_replace_po(po_json)
 
