@@ -701,6 +701,26 @@ def extract_text_from_drive_folder():
                         print(f"  Error extracting tables from {file_item['name']}: {e_tables}")
                         extracted_texts_summary.append(f"Error extracting tables from {file_item['name']}: {e_tables}")
 
+                    # 3. Format for LLM if blocks or tables were found
+                    if blocks or tables: # Only format if there's something to format
+                        print(f"\\n  --- Formatting extracted content for LLM from {file_item['name']} ---")
+                        try:
+                            # Ensure blocks and tables are lists, even if empty, for format_po_for_llm
+                            llm_formatted_content = format_po_for_llm(blocks if blocks else [], tables if tables else [])
+                            if llm_formatted_content.strip(): # Check if there's actual content
+                                print(f"LLM Formatted Content from {file_item['name']}:\\n{llm_formatted_content}\\n{'-'*80}")
+                                extracted_texts_summary.append(f"Successfully formatted content for LLM from: {file_item['name']}")
+                            else:
+                                print(f"  No content to format for LLM from {file_item['name']}.")
+                                extracted_texts_summary.append(f"No content to format for LLM from: {file_item['name']}")
+                        except Exception as e_format_llm:
+                            print(f"  Error formatting content for LLM from {file_item['name']}: {e_format_llm}")
+                            extracted_texts_summary.append(f"Error formatting for LLM from {file_item['name']}: {e_format_llm}")
+                    else:
+                        print(f"\\n  --- No blocks or tables extracted, skipping LLM formatting for {file_item['name']} ---")
+                        extracted_texts_summary.append(f"Skipped LLM formatting (no blocks/tables) for: {file_item['name']}")
+
+
                 finally:
                     # Clean up the temporary file
                     if temp_pdf_path and os.path.exists(temp_pdf_path):
