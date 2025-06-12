@@ -1,125 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <title>PO Sync Dashboard</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
-      crossorigin="anonymous"
-    />
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css"
-      rel="stylesheet"
-    />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-      /* Your existing custom styles (retained) */
       .table {
-        border-collapse: collapse; /* Bootstrap's default often handles this */
-        width: 100%; /* Bootstrap's default handles this */
+        font-size: 0.9rem;
       }
-      .table th,
-      .table td {
-        border: 1px solid #ddd; /* Bootstrap's table-bordered can do this */
-        padding: 8px;
-        text-align: center;
+      .table th {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
       }
-      th {
-        background-color: #f2f2f2; /* This will be overridden by table-dark */
+      .form-container {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
       }
-      .folder-tree ul {
-        list-style-type: none;
-        padding-left: 20px;
+      .btn-group-custom {
+        margin-top: 10px;
       }
-      .folder-tree li {
-        margin-bottom: 5px;
-      }
-      .folder-item {
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-      }
-      .folder-item.folder:before {
-        content: "📁"; /* Folder icon */
-        margin-right: 5px;
-      }
-      .folder-item.file:before {
-        content: "📄"; /* File icon */
-        margin-right: 5px;
-      }
-      .folder-item.folder.expanded:before {
-        content: "📂"; /* Open folder icon */
-      }
-      .folder-children {
-        display: none; /* Hide children by default */
-      }
-      .folder-children.show {
-        display: block; /* Show children when expanded */
-      }
-      .folder-button {
-        margin-left: 10px;
-      }
-      .selected-folder {
-        background-color: #e0f7fa; /* Light blue for selected folder */
-        padding: 2px 5px;
-        border-radius: 3px;
-      }
-      .spinner-border {
-        width: 1.5rem;
-        height: 1.5rem;
-        vertical-align: middle;
-        margin-left: 10px;
+      .po-checkboxes {
+        max-height: 150px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        padding: 10px;
+        border-radius: 4px;
       }
     </style>
   </head>
-  <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div class="container-fluid">
-        <button
-          class="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div
-          class="collapse navbar-collapse justify-content-end"
-          id="navbarNav"
-        >
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <a
-                class="nav-link btn btn-outline-light ms-2"
-                href="{{ url_for('logout') }}"
-                aria-current="page"
-              >
-                <i class="bi bi-box-arrow-right"></i> Logout
-              </a>
-            </li>
-          </ul>
+  <body class="bg-light">
+    <div class="container-fluid py-4">
+      <div class="row">
+        <div class="col-12">
+          <h2 class="mb-4"><i class="bi bi-graph-up"></i> Forecast Pivot Table</h2>
+          
+          <div class="form-container">
+            <form method="get" action="/forecast" class="row g-3">
+              <div class="col-md-3">
+                <label for="client_name" class="form-label"><strong>Client Name:</strong></label>
+                <select name="client_name" id="client_name" class="form-select" multiple size="4">
+                  {% for name in client_names %}
+                    <option value="{{ name }}" {% if name in selected_client %}selected{% endif %}>{{ name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label"><strong>PO No:</strong></label>
+                <div class="po-checkboxes" id="po_no_checkboxes">
+                  {% for po in po_nos %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="po_no" value="{{ po }}" id="po_{{ po }}" {% if po in selected_po %}checked{% endif %}>
+                      <label class="form-check-label" for="po_{{ po }}">{{ po }}</label>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <div class="col-md-2">
+                <label for="start_month" class="form-label"><strong>Start Month:</strong></label>
+                <input type="month" name="start_month" id="start_month" class="form-control" value="{{ selected_start_month[0] if selected_start_month else '' }}">
+              </div>
+
+              <div class="col-md-2">
+                <label for="end_month" class="form-label"><strong>End Month:</strong></label>
+                <input type="month" name="end_month" id="end_month" class="form-control" value="{{ selected_end_month[0] if selected_end_month else '' }}">
+              </div>
+
+              <div class="col-12 btn-group-custom">
+                <button type="submit" class="btn btn-primary me-2">
+                  <i class="bi bi-funnel"></i> Apply Filters
+                </button>
+                <button type="button" class="btn btn-success me-2" onclick="location.href='/refresh_charts'">
+                  <i class="bi bi-arrow-clockwise"></i> Refresh Charts
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="location.href='/download_xlsx'">
+                  <i class="bi bi-download"></i> Download XLSX
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="table-responsive">
+            {{ pivot_table | safe }}
+          </div>
         </div>
       </div>
-    </nav>
-
-    <div class="container mt-4">
-      <h2 class="mb-3">📊 Forecast Pivot Table</h2>
-      <a href="/download-forecast" class="btn btn-primary" download>
-        ⬇️ Download Forecast Excel
-      </a>
-      <div class="table-responsive">
-        <table class="table table-dark table-striped">
-          {{ pivot_table | safe }}
-        </table>
-      </div>
     </div>
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-      crossorigin="anonymous"
-    ></script>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Add edit buttons to each PO row if table is rendered
+      document.addEventListener('DOMContentLoaded', function() {
+        const table = document.querySelector('table');
+        if (table) {
+          table.classList.add('table', 'table-striped', 'table-hover', 'table-bordered');
+          const poNoIdx = Array.from(table.rows[0].cells).findIndex(cell => cell.textContent.trim() === 'PO No');
+          if (poNoIdx !== -1) {
+            // Add header for Edit
+            const th = document.createElement('th');
+            th.textContent = 'Edit';
+            table.rows[0].appendChild(th);
+            // Add edit button to each row
+            for (let i = 1; i < table.rows.length; i++) {
+              const poId = table.rows[i].cells[poNoIdx].textContent.trim();
+              const td = document.createElement('td');
+              const btn = document.createElement('a');
+              btn.textContent = 'Edit';
+              btn.href = '/edit_po/' + encodeURIComponent(poId);
+              btn.className = 'btn btn-sm btn-outline-primary';
+              td.appendChild(btn);
+              table.rows[i].appendChild(td);
+            }
+          }
+        }
+      });
+
+      // On submit, collect all selected values for each filter and submit as comma-separated lists
+      const form = document.querySelector('form[action="/forecast"]');
+      form.addEventListener('submit', function(e) {
+        // PO No checkboxes
+        const poCheckboxes = form.querySelectorAll('input[name="po_no"]:checked');
+        let poValues = Array.from(poCheckboxes).map(cb => cb.value);
+        let existing = form.querySelector('input[type="hidden"][name="po_no"]');
+        if (existing) existing.remove();
+        if (poValues.length > 0) {
+          let hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = 'po_no';
+          hidden.value = poValues.join(',');
+          form.appendChild(hidden);
+        }
+      });
+    </script>
   </body>
 </html>
