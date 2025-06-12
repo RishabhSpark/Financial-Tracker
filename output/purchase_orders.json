@@ -1,6 +1,51 @@
 [
   {
     "client_name": "Fiona Inc",
+    "po_id": "34523",
+    "amount": 80000.0,
+    "status": "Confirmed",
+    "payment_terms": 30,
+    "payment_type": "milestone",
+    "start_date": "01-04-2025",
+    "end_date": "31-12-2025",
+    "duration_months": null,
+    "milestones": [
+      {
+        "milestone_name": "initial",
+        "milestone_description": null,
+        "milestone_due_date": null,
+        "milestone_percentage": 20.0
+      },
+      {
+        "milestone_name": "milestone_1",
+        "milestone_description": null,
+        "milestone_due_date": null,
+        "milestone_percentage": 40.0
+      },
+      {
+        "milestone_name": "milestone_2",
+        "milestone_description": null,
+        "milestone_due_date": null,
+        "milestone_percentage": 40.0
+      }
+    ]
+  },
+  {
+    "client_name": "Fiona Inc",
+    "po_id": "1234567345",
+    "amount": 80000.0,
+    "status": "Confirmed",
+    "payment_terms": 60,
+    "payment_type": "periodic",
+    "start_date": "01-06-2025",
+    "end_date": "31-08-2026",
+    "duration_months": null,
+    "payment_schedule": {
+      "payment_frequency": 1
+    }
+  },
+  {
+    "client_name": "Fiona Inc",
     "po_id": "1234567890",
     "amount": 80000.0,
     "status": "Confirmed",
@@ -53,47 +98,64 @@
     ]
   },
   {
-    "client_name": "Fiona Inc",
-    "po_id": "1234567345",
-    "amount": 80000.0,
+    "client_name": "Nimbus Holdings Inc.",
+    "po_id": "PO-3425",
+    "amount": 16400.0,
     "status": "Confirmed",
-    "payment_terms": 60,
-    "payment_type": "periodic",
-    "start_date": "01-06-2025",
-    "end_date": "31-08-2026",
-    "duration_months": null,
-    "payment_schedule": {
-      "payment_frequency": 1
-    }
-  },
-  {
-    "client_name": "Fiona Inc",
-    "po_id": "34523",
-    "amount": 80000.0,
-    "status": "Confirmed",
-    "payment_terms": 30,
+    "payment_terms": 0,
     "payment_type": "milestone",
-    "start_date": "01-04-2025",
-    "end_date": "31-12-2025",
-    "duration_months": null,
+    "start_date": "10-06-2025",
+    "end_date": "28-09-2025",
+    "duration_months": 3.5,
     "milestones": [
       {
         "milestone_name": "initial",
         "milestone_description": null,
-        "milestone_due_date": null,
-        "milestone_percentage": 20.0
+        "milestone_due_date": "10-06-2025",
+        "milestone_percentage": 50.0
       },
       {
         "milestone_name": "milestone_1",
         "milestone_description": null,
         "milestone_due_date": null,
+        "milestone_percentage": 30.0
+      },
+      {
+        "milestone_name": "milestone_2",
+        "milestone_description": null,
+        "milestone_due_date": null,
+        "milestone_percentage": 20.0
+      }
+    ]
+  },
+  {
+    "client_name": "Nimbus Holdings Inc.",
+    "po_id": "AMP-PO-2025-001",
+    "amount": 16402.0,
+    "status": "Confirmed",
+    "payment_terms": 15,
+    "payment_type": "milestone",
+    "start_date": "10-06-2025",
+    "end_date": "30-09-2025",
+    "duration_months": 3.5,
+    "milestones": [
+      {
+        "milestone_name": "initial",
+        "milestone_description": null,
+        "milestone_due_date": null,
+        "milestone_percentage": 30.0
+      },
+      {
+        "milestone_name": "milestone_1",
+        "milestone_description": null,
+        "milestone_due_date": "31-07-2025",
         "milestone_percentage": 40.0
       },
       {
         "milestone_name": "milestone_2",
         "milestone_description": null,
         "milestone_due_date": null,
-        "milestone_percentage": 40.0
+        "milestone_percentage": 30.0
       }
     ]
   }

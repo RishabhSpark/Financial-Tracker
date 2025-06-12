@@ -667,60 +667,53 @@ def extract_text_from_drive_folder():
                     
                     print(f"  PDF content for {file_item['name']} saved to temporary file: {temp_pdf_path}")
 
-                    # 1. Extract text blocks using PyMuPDF (fitz)
-                    print(f"\\n  --- Attempting to extract blocks from {file_item['name']} ---")
-                    try:
-                        blocks = extract_blocks(temp_pdf_path)
-                        if blocks:
-                            print(f"  Extracted {len(blocks)} blocks from {file_item['name']}:")
-                            for i, block_text in enumerate(blocks):
-                                print(f"    Block {i+1} (first 100 chars): {block_text[:100].replace(chr(10), ' ')}...")
-                            extracted_texts_summary.append(f"Successfully extracted {len(blocks)} blocks from: {file_item['name']}")
-                        else:
-                            print(f"  No text blocks extracted from {file_item['name']}.")
-                            extracted_texts_summary.append(f"No blocks extracted from: {file_item['name']}")
-                    except Exception as e_blocks:
-                        print(f"  Error extracting blocks from {file_item['name']}: {e_blocks}")
-                        extracted_texts_summary.append(f"Error extracting blocks from {file_item['name']}: {e_blocks}")
-
-                    # 2. Extract tables using pdfplumber
-                    print(f"\\n  --- Attempting to extract tables from {file_item['name']} ---")
-                    try:
-                        tables = extract_tables(temp_pdf_path)
-                        if tables:
-                            print(f"  Extracted {len(tables)} tables from {file_item['name']}:")
-                            for i, table_data in enumerate(tables):
-                                print(f"    Table {i+1} with {len(table_data)} rows.")
-                                if table_data and table_data[0]: # Check if table has rows and first row exists
-                                    print(f"Table {i+1} - First row (first 3 cells, max 20 chars each): {[str(cell)[:20] if cell is not None else '' for cell in table_data[0][:3]]}")
-                            extracted_texts_summary.append(f"Successfully extracted {len(tables)} tables from: {file_item['name']}")
-                        else:
-                            print(f"  No tables extracted from {file_item['name']}.")
-                            extracted_texts_summary.append(f"No tables extracted from: {file_item['name']}")
-                    except Exception as e_tables:
-                        print(f"  Error extracting tables from {file_item['name']}: {e_tables}")
-                        extracted_texts_summary.append(f"Error extracting tables from {file_item['name']}: {e_tables}")
-
-                    # 3. Format for LLM if blocks or tables were found
-                    if blocks or tables: # Only format if there's something to format
-                        print(f"\\n  --- Formatting extracted content for LLM from {file_item['name']} ---")
-                        try:
-                            # Ensure blocks and tables are lists, even if empty, for format_po_for_llm
-                            llm_formatted_content = format_po_for_llm(blocks if blocks else [], tables if tables else [])
-                            if llm_formatted_content.strip(): # Check if there's actual content
-                                print(f"LLM Formatted Content from {file_item['name']}:\\n{llm_formatted_content}\\n{'-'*80}")
-                                extracted_texts_summary.append(f"Successfully formatted content for LLM from: {file_item['name']}")
-                            else:
-                                print(f"  No content to format for LLM from {file_item['name']}.")
-                                extracted_texts_summary.append(f"No content to format for LLM from: {file_item['name']}")
-                        except Exception as e_format_llm:
-                            print(f"  Error formatting content for LLM from {file_item['name']}: {e_format_llm}")
-                            extracted_texts_summary.append(f"Error formatting for LLM from {file_item['name']}: {e_format_llm}")
+                    # --- RUN EXTRACTION PIPELINE (like main.py) ---
+                    print(f"  Running extraction pipeline for {file_item['name']}...")
+                    po_json_data_for_db = run_pipeline(temp_pdf_path)
+                    if po_json_data_for_db:
+                        insert_or_replace_po(po_json_data_for_db)
+                        print(f"  Successfully inserted/replaced PO data for {file_item['name']} into database.")
+                        extracted_texts_summary.append(f"Inserted/replaced PO data for: {file_item['name']}")
                     else:
-                        print(f"\\n  --- No blocks or tables extracted, skipping LLM formatting for {file_item['name']} ---")
-                        extracted_texts_summary.append(f"Skipped LLM formatting (no blocks/tables) for: {file_item['name']}")
+                        print(f"  Warning: No data extracted from {file_item['name']}. Skipping database insertion for this file.")
+                        extracted_texts_summary.append(f"No data extracted from {file_item['name']}. DB insert skipped.")
+                    # --- END PIPELINE ---
 
+                    # # 1. Extract text blocks using PyMuPDF (fitz)
+                    # print(f"\n  --- Attempting to extract blocks from {file_item['name']} ---")
+                    # try:
+                    #     blocks = extract_blocks(temp_pdf_path)
+                    #     if blocks:
+                    #         print(f"  Extracted {len(blocks)} blocks from {file_item['name']}.")
+                    #         extracted_texts_summary.append(f"Successfully extracted {len(blocks)} blocks from: {file_item['name']}")
+                    #     else:
+                    #         print(f"  No text blocks extracted from {file_item['name']}.")
+                    #         extracted_texts_summary.append(f"No blocks extracted from: {file_item['name']}")
+                    # except Exception as e_blocks:
+                    #     print(f"  Error extracting blocks from {file_item['name']}: {e_blocks}")
+                    #     extracted_texts_summary.append(f"Error extracting blocks from {file_item['name']}: {e_blocks}")
 
+                    # # 2. Extract tables using pdfplumber
+                    # print(f"\n  --- Attempting to extract tables from {file_item['name']} ---")
+                    # try:
+                    #     tables = extract_tables(temp_pdf_path)
+                    #     if tables:
+                    #         print(f"  Extracted {len(tables)} tables from {file_item['name']}.")
+                    #         extracted_texts_summary.append(f"Successfully extracted {len(tables)} tables from: {file_item['name']}")
+                    #     else:
+                    #         print(f"  No tables extracted from {file_item['name']}.")
+                    #         extracted_texts_summary.append(f"No tables extracted from: {file_item['name']}")
+                    # except Exception as e_tables:
+                    #     print(f"  Error extracting tables from {file_item['name']}: {e_tables}")
+                    #     extracted_texts_summary.append(f"Error extracting tables from {file_item['name']}: {e_tables}")
+
+                    # try:
+                    #     llm_formatted_content = format_po_for_llm(blocks, tables)
+                    #     print(f"  Successfully formatted PO for LLM for {file_item['name']}.")
+                    #     extracted_texts_summary.append(f"Formatted PO for LLM for: {file_item['name']}")
+                    # except Exception as e:
+                    #     print(f"  Failed to format PO for LLM for {file_item['name']}: {e}")
+                    #     extracted_texts_summary.append(f"Failed to format PO for LLM for {file_item['name']}: {e}")
                 finally:
                     # Clean up the temporary file
                     if temp_pdf_path and os.path.exists(temp_pdf_path):
@@ -728,23 +721,23 @@ def extract_text_from_drive_folder():
                         os.remove(temp_pdf_path)
                 # --- End of integration ---
                 
-                # Original PyPDF2 text extraction (kept for comparison or basic dump)
-                print(f"\\n  --- Attempting basic text extraction with PyPDF2 from {file_item['name']} ---")
-                fh.seek(0) # Reset stream position for PdfReader
-                pdf_reader = PdfReader(fh)
-                text = ""
-                for page_num, page in enumerate(pdf_reader.pages):
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += f"\\n--- Page {page_num + 1} ---\\n{page_text}"
+                # # Original PyPDF2 text extraction (kept for comparison or basic dump)
+                # print(f"\\n  --- Attempting basic text extraction with PyPDF2 from {file_item['name']} ---")
+                # fh.seek(0) # Reset stream position for PdfReader
+                # pdf_reader = PdfReader(fh)
+                # text = ""
+                # for page_num, page in enumerate(pdf_reader.pages):
+                #     page_text = page.extract_text()
+                #     if page_text:
+                #         text += f"\\n--- Page {page_num + 1} ---\\n{page_text}"
                 
-                if text.strip():
-                    print(f"  Extracted basic text from {file_item['name']} (PyPDF2):\\n{text}\\n{'-'*80}")
-                    extracted_texts_summary.append(f"Successfully extracted basic text (PyPDF2) from: {file_item['name']}")
-                else:
-                    no_text_message = f"  No basic text could be extracted (PyPDF2) from {file_item['name']} (it might be an image-based PDF or empty)."
-                    print(f"{no_text_message}\\n{'-'*80}")
-                    extracted_texts_summary.append(f"No basic text extracted (PyPDF2) from: {file_item['name']}")
+                # if text.strip():
+                #     print(f"  Extracted basic text from {file_item['name']} (PyPDF2):\\n{text}\\n{'-'*80}")
+                #     extracted_texts_summary.append(f"Successfully extracted basic text (PyPDF2) from: {file_item['name']}")
+                # else:
+                #     no_text_message = f"  No basic text could be extracted (PyPDF2) from {file_item['name']} (it might be an image-based PDF or empty)."
+                #     print(f"{no_text_message}\\n{'-'*80}")
+                #     extracted_texts_summary.append(f"No basic text extracted (PyPDF2) from: {file_item['name']}")
                 # fh.close() # fh will be closed in the outer finally block
 
             except Exception as e:
@@ -755,8 +748,22 @@ def extract_text_from_drive_folder():
                 if fh: # Ensure fh is not None before trying to close
                     fh.close()
     
-    print(f"Finished processing folder ID: {folder_id}\\n")
-    
+    print(f"Finished processing folder ID: {folder_id}\n")
+
+    # --- Export and Forecast steps (like main.py) ---
+    print("\n--- Exporting Data to JSON and CSV ---")
+    from extractor.export import export_all_pos_json, export_all_csvs
+    export_all_pos_json()
+    export_all_csvs()
+    print("--- Data Export Complete ---")
+
+    print("\n--- Generating Financial Forecast ---")
+    from forecast_processor import run_forecast_processing
+    run_forecast_processing(input_json_path="./output/purchase_orders.json")
+    print("--- Financial Forecast Generation Complete ---")
+
+    print("\nAll processes finished successfully!")
+
     if not pdf_files_found:
         message = f"No PDF files found in the specified folder '{folder_metadata.get('name')}' (ID: {folder_id})."
         print(message)

@@ -2,3 +2,9 @@ po_id,milestone_name,milestone_description,milestone_due_date,milestone_percenta
 34523,initial,,,20.0
 34523,milestone_1,,,40.0
 34523,milestone_2,,,40.0
+PO-3425,initial,,10-06-2025,50.0
+PO-3425,milestone_1,,,30.0
+PO-3425,milestone_2,,,20.0
+AMP-PO-2025-001,initial,,,30.0
+AMP-PO-2025-001,milestone_1,,31-07-2025,40.0
+AMP-PO-2025-001,milestone_2,,,30.0
