@@ -20,7 +20,7 @@ import sqlite3
 
 
 app = Flask(__name__)
-app.secret_key = "supersecret123"
+app.secret_key = os.getenv('SECRET_KEY', 'supersecret123')  
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -28,11 +28,13 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 CLIENT_SECRETS_FILE = 'client_secret.json'
 
-USERS = {
-    "admin": generate_password_hash("password012"),
-    "fiona.l": generate_password_hash("securepass"),
-    "rishabh": generate_password_hash("securepass")
-}
+
+USERS = {}
+for i in range(1, 10): 
+    username = os.getenv(f'USER_{i}_NAME')
+    password = os.getenv(f'USER_{i}_PASSWORD')
+    if username and password:
+        USERS[username] = password  
 
 
 def build_credentials(creds_dict):
