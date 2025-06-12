@@ -17,6 +17,9 @@ from extractor.pdf_processing.extract_tables import extract_tables
 from extractor.pdf_processing.format_po import format_po_for_llm
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 app = Flask(__name__)
