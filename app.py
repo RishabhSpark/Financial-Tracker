@@ -2,37 +2,99 @@ import os
 import io
 import tempfile
 import pandas as pd
-import pdfplumber
 from PyPDF2 import PdfReader
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
+from functools import wraps
 from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
 from db.database import init_db
-from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string
+from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string, jsonify, flash, g
 from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
 from extractor.pdf_processing.format_po import format_po_for_llm
-from flask import jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 
 
 app = Flask(__name__)
-app.secret_key = "your-secret-key"
-
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+app.secret_key = "supersecret123"
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 CLIENT_SECRETS_FILE = 'client_secret.json'
+
+USERS = {
+    "admin": generate_password_hash("password012"),
+    "fiona.l": generate_password_hash("securepass"),
+    "rishabh": generate_password_hash("securepass")
+}
+
+
+def build_credentials(creds_dict):
+    return Credentials(**creds_dict)
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session or not session['logged_in']:
+            flash('Please log in to access this page.', 'danger')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.before_request
+def load_logged_in_user():
+    g.user = None
+    if 'username' in session:
+        g.user = session['username']
 
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('login.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+
+    if "logged_in" in session and session['logged_in']:
+        return render_template('index.html')
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        if username in USERS and check_password_hash(USERS[username], password):
+            session['logged_in'] = True
+            session['username'] = username
+            flash(f'Logged in successfully as {username}!', 'success')
+
+            return render_template('index.html')
+        else:
+            flash('Invalid username or password.', 'danger')
+            return render_template('login.html')
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    session.pop('logged_in', None)
+    session.pop('username', None)
+    session.pop('credentials', None)
+    flash('You have been logged out.', 'info')
+    session.clear()
+    return redirect(url_for('login'))
 
 
 @app.route('/authorize')
+@login_required
 def authorize():
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
@@ -44,6 +106,7 @@ def authorize():
 
 
 @app.route('/oauth2callback')
+@login_required
 def oauth2callback():
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
@@ -57,9 +120,8 @@ def oauth2callback():
 
 
 @app.route('/process_pdf/<file_id>')
+@login_required
 def process_pdf(file_id):
-    if 'credentials' not in session:
-        return redirect(url_for('authorize'))
 
     creds = Credentials.from_authorized_user_info(session['credentials'])
     service = build('drive', 'v3', credentials=creds)
@@ -77,10 +139,8 @@ def process_pdf(file_id):
         while not done:
             status, done = downloader.next_chunk()
 
-        fh.seek(0)  # Rewind the BytesIO object to the beginning
+        fh.seek(0)
 
-        # Create a temporary file to save the PDF content
-        # This is necessary because PyMuPDF and pdfplumber typically work with file paths.
         temp_dir = tempfile.gettempdir()
         temp_pdf_path = os.path.join(temp_dir, f"temp_pdf_{file_id}.pdf")
 
@@ -88,15 +148,11 @@ def process_pdf(file_id):
             f.write(fh.getvalue())
 
         try:
-            # Extract text blocks and tables
             text_blocks = extract_blocks(temp_pdf_path)
             tables = extract_tables(temp_pdf_path)
 
-            # Format for LLM
             llm_formatted_content = format_po_for_llm(text_blocks, tables)
 
-            # You can now save `llm_formatted_content` to a database, a file,
-            # or pass it to an LLM directly. For this example, let's just display it.
             return f"""
             <h1>Processed PDF: {file['name']}</h1>
             <h2>LLM Formatted Content (for direct use):</h2>
@@ -104,7 +160,6 @@ def process_pdf(file_id):
             """
 
         finally:
-            # Clean up the temporary file
             if os.path.exists(temp_pdf_path):
                 os.remove(temp_pdf_path)
 
@@ -113,9 +168,8 @@ def process_pdf(file_id):
 
 
 @app.route('/download/<file_id>')
+@login_required
 def download_pdf(file_id):
-    if 'credentials' not in session:
-        return redirect(url_for('authorize'))
 
     creds = Credentials.from_authorized_user_info(session['credentials'])
     service = build('drive', 'v3', credentials=creds)
@@ -143,52 +197,15 @@ def download_pdf(file_id):
     return f"<p>✅ PDF downloaded and saved to <code>{save_path}</code></p>"
 
 
-# @app.route("/sync", methods=["POST"])
-# def sync_file():
-#     if 'credentials' not in session:
-#         return redirect(url_for('authorize'))
-
-#     creds = Credentials.from_authorized_user_info(session['credentials'])
-#     service = build('drive', 'v3', credentials=creds)
-
-#     file_id_or_path = request.form.get("file_path", "").strip()
-
-#     try:
-#         # Get file metadata
-#         file = service.files().get(fileId=file_id_or_path, fields="name, mimeType").execute()
-
-#         # Check PDF
-#         if file['mimeType'] != 'application/pdf':
-#             return "<p>❌ Only PDF files are supported.</p>"
-
-#         request_file = service.files().get_media(fileId=file_id_or_path)
-#         fh = io.BytesIO()
-#         downloader = MediaIoBaseDownload(fh, request_file)
-#         done = False
-#         while not done:
-#             status, done = downloader.next_chunk()
-
-#         # Move to start of file and read content
-#         fh.seek(0)
-#         pdf_reader = PdfReader(fh)
-#         text = ""
-#         for page in pdf_reader.pages:
-#             text += page.extract_text() or ""
-
-#         # Use existing pipeline to extract and store
-#         po_json = run_pipeline(text)
-#         insert_or_replace_po(po_json)
-
-#         return "<p>✅ File synced successfully from Google Drive!</p>"
-
-#     except Exception as e:
-#         print(e)
-#         return f"<p>❌ Error syncing file: {e}</p>"
 
 
 @app.route("/forecast", methods=["GET"])
+@login_required
 def forecast():
-    # Get filter values from query params (support multi-select)
+    creds = Credentials.from_authorized_user_info(session['credentials'])
+    # pivot_html = generate_pivot_table_html()
+    
+    # return render_template("forecast.html", pivot_table=pivot_html)
     def parse_checklist(param):
         val = request.args.get(param, default=None, type=str)
         if val is None or val == '':
@@ -202,6 +219,46 @@ def forecast():
     end_month_selected = request.args.get('end_month', default=None, type=str)
 
     df = None
+    try:
+        df = pd.read_csv("forecast_output.csv")
+        if 'Inflow (USD)' in df.columns:
+            df['Inflow (USD)'] = pd.to_numeric(df['Inflow (USD)'], errors='coerce').fillna(0.0)
+    except Exception:
+        df = pd.DataFrame()
+
+    # Prepare dropdown options
+    client_names = sorted(df['Client Name'].dropna().unique()) if 'Client Name' in df.columns else []
+    po_nos = sorted([str(po) for po in df['PO No'].dropna().unique()]) if 'PO No' in df.columns else []
+    months = sorted(df['Month'].dropna().unique()) if 'Month' in df.columns else []
+
+    # Apply filters (multi-select for client/po, range for months)
+    filtered_df = df.copy()
+    if client_names_selected:
+        filtered_df = filtered_df[filtered_df['Client Name'].isin(client_names_selected)]
+    if po_nos_selected:
+        filtered_df = filtered_df[filtered_df['PO No'].astype(str).isin(po_nos_selected)]
+    if start_month_selected:
+        filtered_df = filtered_df[filtered_df['Month'] >= start_month_selected]
+    if end_month_selected:
+        filtered_df = filtered_df[filtered_df['Month'] <= end_month_selected]
+
+    # Generate filtered pivot table
+    pivot_html = generate_pivot_table_html(filtered_df)
+
+    return render_template(
+        "forecast.html",
+        pivot_table=pivot_html,
+        client_names=client_names,
+        po_nos=po_nos,
+        months=months,
+        selected_client=client_names_selected,
+        selected_po=po_nos_selected,
+        selected_start_month=[start_month_selected] if start_month_selected else [],
+        selected_end_month=[end_month_selected] if end_month_selected else []
+    )
+    
+
+def generate_pivot_table_html():
     try:
         df = pd.read_csv("forecast_output.csv")
         if 'Inflow (USD)' in df.columns:
@@ -338,6 +395,12 @@ def generate_pivot_table_html(df=None):
         return "<p>Error: <code>forecast_output.csv</code> not found. Please generate the forecast first.</p>"
     except Exception as e:
         return f"<p>Error generating pivot table: {e}</p>"
+
+
+@app.route("/download-forecast")
+@login_required
+def download_forecast():
+    return send_file("forecast_pivot.xlsx", as_attachment=True)
 
 
 def creds_to_dict(creds):
