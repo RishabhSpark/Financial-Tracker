@@ -314,11 +314,16 @@ def generate_pivot_table_html(df=None):
                 return f"{float(val):.2f}"
             except:
                 return val
+        def format_usd(val):
+            try:
+                return "$" + format(float(val), ",.2f")
+            except:
+                return val
         html = pivot.to_html(
             classes="table table-striped table-bordered",
             border=0,
             index=False,
-            float_format='%.2f',
+            formatters={col: format_usd for col in pivot.columns if col not in ['S.No', 'Client Name', 'PO No']},
             na_rep=""
         )
         return html
@@ -839,6 +844,16 @@ def refresh_charts():
     export_all_csvs()
     run_forecast_processing(input_json_path="./output/purchase_orders.json")
     return redirect(url_for('forecast'))
+
+@app.route('/download_xlsx')
+def download_xlsx():
+    from extractor.export import export_all_pos_json, export_all_csvs
+    from forecast_processor import run_forecast_processing
+    export_all_pos_json()
+    export_all_csvs()
+    run_forecast_processing(input_json_path="./output/purchase_orders.json")
+    xlsx_path = os.path.abspath("forecast_pivot.xlsx")
+    return send_file(xlsx_path, as_attachment=True, download_name="forecast_pivot.xlsx")
 
 if __name__ == '__main__':
     init_db()
