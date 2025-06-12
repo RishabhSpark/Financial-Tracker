@@ -48,38 +48,9 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
 
     # Consolidate DataFrame creation
     if not all_forecast_dfs:
-        new_data_df = pd.DataFrame()
+        combined_df = pd.DataFrame()
     else:
-        new_data_df = pd.concat(all_forecast_dfs, ignore_index=True)
-
-    # Load existing data if available and combine
-    if os.path.exists(output_csv_path):
-        try:
-            existing_df = pd.read_csv(output_csv_path)
-            # Clean existing_df
-            if "Unnamed: 0" in existing_df.columns:
-                existing_df.drop(columns=["Unnamed: 0"], inplace=True)
-            if 'S.No' in existing_df.columns:
-                existing_df.drop(columns=['S.No'], inplace=True)
-            
-            frames_to_concat = []
-            if not existing_df.empty:
-                frames_to_concat.append(existing_df)
-            if not new_data_df.empty:
-                frames_to_concat.append(new_data_df)
-            
-            if frames_to_concat:
-                combined_df = pd.concat(frames_to_concat, ignore_index=True)
-            else:
-                combined_df = pd.DataFrame() # Empty if both are empty
-        except pd.errors.EmptyDataError:
-            print(f"Warning: Existing CSV file '{output_csv_path}' is empty. Using new data if available.")
-            combined_df = new_data_df
-        except Exception as e:
-            print(f"Warning: Error reading or processing existing CSV '{output_csv_path}': {e}. Using new data if available.")
-            combined_df = new_data_df
-    else:
-        combined_df = new_data_df
+        combined_df = pd.concat(all_forecast_dfs, ignore_index=True)
 
     if combined_df.empty:
         print("No forecast data available to process. Skipping CSV and Excel output.")

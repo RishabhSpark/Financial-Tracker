@@ -830,6 +830,16 @@ def edit_po(po_id):
         return f"<p>PO with ID {po_id} not found.</p>"
     return render_template('edit_po.html', po=po)
 
+@app.route('/refresh_charts')
+def refresh_charts():
+    # Re-run export and forecast processing
+    from extractor.export import export_all_pos_json, export_all_csvs
+    from forecast_processor import run_forecast_processing
+    export_all_pos_json()
+    export_all_csvs()
+    run_forecast_processing(input_json_path="./output/purchase_orders.json")
+    return redirect(url_for('forecast'))
+
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)

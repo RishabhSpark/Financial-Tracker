@@ -5,17 +5,33 @@ def insert_or_replace_po(po_dict: dict):
     session = SessionLocal()
     po_id = po_dict.get("po_id")
 
-    # Check if PO exists
     existing_po = session.query(PurchaseOrder).filter_by(po_id=po_id).first()
-    
     if existing_po:
-        # PO already exists, skip insertion or update if necessary
-        # For now, we'll just skip. If update logic is needed, it would go here.
+        # Update all fields
+        existing_po.client_name = po_dict.get("client_name")
+        existing_po.amount = po_dict.get("amount")
+        existing_po.status = po_dict.get("status")
+        existing_po.payment_terms = po_dict.get("payment_terms")
+        existing_po.payment_type = po_dict.get("payment_type")
+        existing_po.start_date = po_dict.get("start_date")
+        existing_po.end_date = po_dict.get("end_date")
+        existing_po.duration_months = po_dict.get("duration_months")
+        existing_po.payment_frequency = po_dict.get("payment_frequency")
+        # Remove old milestones and payment schedules
+        session.query(Milestone).filter_by(po_id=po_id).delete()
+        session.query(PaymentSchedule).filter_by(po_id=po_id).delete()
+        # Add new milestones or payment schedules
+        if existing_po.payment_type == "milestone":
+            for ms in po_dict.get("milestones", []):
+                session.add(Milestone(po_id=po_id, **ms))
+        elif existing_po.payment_type == "distributed":
+            for sched in po_dict.get("payment_schedule", []):
+                session.add(PaymentSchedule(po_id=po_id, **sched))
+        session.commit()
         session.close()
-        return # Or log a message, etc.
-    
+        return
+
     # PO does not exist, proceed with insertion
-    # insert main PO
     po = PurchaseOrder(
         po_id=po_dict["po_id"],
         client_name=po_dict.get("client_name"),
@@ -28,18 +44,13 @@ def insert_or_replace_po(po_dict: dict):
         duration_months=po_dict.get("duration_months"),
         payment_frequency=po_dict.get("payment_frequency")
     )
-
     session.add(po)
-
-    # insert based on type
     if po.payment_type == "milestone":
         for ms in po_dict.get("milestones", []):
             session.add(Milestone(po_id=po_id, **ms))
-
     elif po.payment_type == "distributed":
         for sched in po_dict.get("payment_schedule", []):
             session.add(PaymentSchedule(po_id=po_id, **sched))
-
     session.commit()
     session.close()
 
