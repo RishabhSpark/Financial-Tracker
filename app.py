@@ -56,50 +56,6 @@ def oauth2callback():
     return redirect(url_for('drive_tree')) # Changed from 'forecast'
 
 
-@app.route('/list')
-def list_files():
-    if 'credentials' not in session:
-        return redirect('authorize')
-
-    creds = Credentials.from_authorized_user_info(session['credentials'])
-    service = build('drive', 'v3', credentials=creds)
-
-    results = service.files().list(
-        pageSize=10, fields="files(id, name, mimeType)").execute()
-    files = results.get('files', [])
-
-    return render_template('list.html', files=files)
-
-
-# @app.route('/read_pdf/<file_id>')
-# def read_pdf(file_id):
-#     if 'credentials' not in session:
-#         return redirect(url_for('authorize'))
-
-#     creds = Credentials.from_authorized_user_info(session['credentials'])
-#     service = build('drive', 'v3', credentials=creds)
-
-#     file = service.files().get(fileId=file_id, fields='name, mimeType').execute()
-#     if file['mimeType'] != 'application/pdf':
-#         return "<p>❌ Only PDF files are supported.</p>"
-
-#     request_drive = service.files().get_media(fileId=file_id)
-#     fh = io.BytesIO()
-#     downloader = MediaIoBaseDownload(fh, request_drive)
-
-#     done = False
-#     while not done:
-#         status, done = downloader.next_chunk()
-
-#     fh.seek(0)
-    # return fh
-    # text = ""
-    # with pdfplumber.open(fh) as pdf:
-    #     for page in pdf.pages:
-    #         text += page.extract_text() or ""
-
-    # return f"<pre>{text}</pre>"
-
 @app.route('/process_pdf/<file_id>')
 def process_pdf(file_id):
     if 'credentials' not in session:
@@ -230,84 +186,145 @@ def download_pdf(file_id):
 #         return f"<p>❌ Error syncing file: {e}</p>"
 
 
-@app.route('/dashboard')
-def dashboard():
-    # Placeholder for dashboard content
-    # You can fetch data from your database or other sources to display here
-    return "<h1>Welcome to your Dashboard!</h1><p>Folder selection confirmed and files are being processed (if applicable).</p>"
-
-@app.route("/forecast")
+@app.route("/forecast", methods=["GET"])
 def forecast():
-    pivot_html = generate_pivot_table_html()
-    return render_template("forecast.html", pivot_table=pivot_html)
+    # Get filter values from query params
+    client_name = request.args.get('client_name', default=None, type=str)
+    po_no = request.args.get('po_no', default=None, type=str)
+    start_month = request.args.get('start_month', default=None, type=str)
+    end_month = request.args.get('end_month', default=None, type=str)
 
-
-def generate_pivot_table_html():
+    df = None
     try:
         df = pd.read_csv("forecast_output.csv")
+        if 'Inflow (USD)' in df.columns:
+            df['Inflow (USD)'] = pd.to_numeric(df['Inflow (USD)'], errors='coerce').fillna(0.0)
+    except Exception:
+        df = pd.DataFrame()
+
+    # Prepare dropdown options
+    client_names = sorted(df['Client Name'].dropna().unique()) if 'Client Name' in df.columns else []
+    po_nos = sorted([str(po) for po in df['PO No'].dropna().unique()]) if 'PO No' in df.columns else []
+    months = sorted(df['Month'].dropna().unique()) if 'Month' in df.columns else []
+
+    # Apply filters
+    filtered_df = df.copy()
+    if client_name:
+        filtered_df = filtered_df[filtered_df['Client Name'] == client_name]
+    if po_no:
+        filtered_df = filtered_df[filtered_df['PO No'].astype(str) == po_no]
+    if start_month:
+        filtered_df = filtered_df[filtered_df['Month'] >= start_month]
+    if end_month:
+        filtered_df = filtered_df[filtered_df['Month'] <= end_month]
+
+    # Generate filtered pivot table
+    pivot_html = generate_pivot_table_html(filtered_df)
+
+    return render_template(
+        "forecast.html",
+        pivot_table=pivot_html,
+        client_names=client_names,
+        po_nos=po_nos,
+        months=months,
+        selected_client=client_name,
+        selected_po=po_no,
+        selected_start_month=start_month,
+        selected_end_month=end_month
+    )
+
+
+def generate_pivot_table_html(df=None):
+    try:
+        if df is None:
+            df = pd.read_csv("forecast_output.csv")
 
         # Ensure 'Inflow (USD)' is numeric and NaNs are 0.0.
         if 'Inflow (USD)' in df.columns:
             df['Inflow (USD)'] = pd.to_numeric(df['Inflow (USD)'], errors='coerce').fillna(0.0)
         else:
-            # If 'Inflow (USD)' column is missing, create it as an empty float series.
-            # This helps prevent downstream errors but indicates an issue with forecast_output.csv.
             df['Inflow (USD)'] = pd.Series(dtype='float64')
 
         all_months_for_pivot = []
-        # Check if 'Month' column exists and has valid data before processing
         if 'Month' in df.columns and not df['Month'].dropna().empty:
             month_as_datetime = pd.to_datetime(df['Month'], format='%Y-%m', errors='coerce')
-            month_as_datetime.dropna(inplace=True) # Remove rows where 'Month' couldn't be parsed
-            
-            if not month_as_datetime.empty: # Check if any valid months remain
+            month_as_datetime.dropna(inplace=True)
+            if not month_as_datetime.empty:
                 min_month = month_as_datetime.min()
                 max_month = month_as_datetime.max()
-                # Generate a complete list of months in 'YYYY-MM' format
                 all_months_for_pivot = pd.date_range(min_month, max_month, freq='MS').strftime('%Y-%m').tolist()
-        
-        # Ensure index and columns for pivot_table exist, even if empty, to prevent errors.
-        # Ideally, forecast_output.csv should always have these.
+
         for col in ["Client Name", "PO No", "Month"]:
             if col not in df.columns:
                 df[col] = pd.Series(dtype='object')
 
-
+        # --- Pivot Table with Totals ---
         pivot = df.pivot_table(
             index=["Client Name", "PO No"],
             columns="Month",
             values="Inflow (USD)",
             aggfunc="sum",
-            fill_value=0.0  # Changed from 0.000
+            fill_value=0.0
         )
-        
-        pivot = pivot.reindex(columns=all_months_for_pivot, fill_value=0.0)  # Changed from 0
-        pivot.reset_index(inplace=True) # Move "Client Name" and "PO No" from index to columns
-        
+        pivot = pivot.reindex(columns=all_months_for_pivot, fill_value=0.0)
+        pivot.reset_index(inplace=True)
+
+        # Add row-wise total (sum across months for each PO)
+        month_cols = all_months_for_pivot
+        if month_cols:
+            pivot['Total'] = pivot[month_cols].sum(axis=1)
+        else:
+            pivot['Total'] = 0.0
+
         # Add a serial number column
         if not pivot.empty:
             pivot.insert(0, 'S.No', range(1, 1 + len(pivot)))
         else:
-            # If pivot is empty, ensure key columns exist for a consistent empty table structure
             if 'S.No' not in pivot.columns: pivot['S.No'] = pd.Series(dtype='int')
             if "Client Name" not in pivot.columns: pivot["Client Name"] = pd.Series(dtype='object')
             if "PO No" not in pivot.columns: pivot["PO No"] = pd.Series(dtype='object')
 
+        # Add a total row at the bottom (sum for each month and for the 'Total' column)
+        if not pivot.empty and month_cols:
+            total_row = [''] * len(pivot.columns)
+            # Find column indices
+            s_no_idx = pivot.columns.get_loc('S.No') if 'S.No' in pivot.columns else None
+            client_idx = pivot.columns.get_loc('Client Name') if 'Client Name' in pivot.columns else None
+            po_idx = pivot.columns.get_loc('PO No') if 'PO No' in pivot.columns else None
+            # Label the total row
+            if client_idx is not None:
+                total_row[client_idx] = 'TOTAL'
+            if po_idx is not None:
+                total_row[po_idx] = ''
+            # Fill month totals
+            for m in month_cols:
+                col_idx = pivot.columns.get_loc(m)
+                total_row[col_idx] = pivot[m].sum()
+            # Fill grand total
+            total_col_idx = pivot.columns.get_loc('Total')
+            total_row[total_col_idx] = pivot['Total'].sum()
+            # Insert the total row as a DataFrame
+            total_df = pd.DataFrame([total_row], columns=pivot.columns)
+            # Concatenate to the pivot
+            pivot = pd.concat([pivot, total_df], ignore_index=True)
 
         # Convert the pivot table to HTML, formatting float values to two decimal places
-        return pivot.to_html(
+        def format_float(val):
+            try:
+                return f"{float(val):.2f}"
+            except:
+                return val
+        html = pivot.to_html(
             classes="table table-striped table-bordered",
             border=0,
             index=False,
-            float_format='%.2f'  # ADDED: Format all floats to "0.00"
+            float_format='%.2f',
+            na_rep=""
         )
-
+        return html
     except FileNotFoundError:
         return "<p>Error: <code>forecast_output.csv</code> not found. Please generate the forecast first.</p>"
     except Exception as e:
-        # For debugging, consider logging the error:
-        # import logging
-        # logging.error(f"Error generating pivot table: {e}", exc_info=True)
         return f"<p>Error generating pivot table: {e}</p>"
 
 
@@ -701,7 +718,7 @@ def extract_text_from_drive_folder():
                 temp_dir = tempfile.gettempdir()
                 # Generate a unique filename to avoid conflicts if multiple requests happen concurrently
                 temp_pdf_filename = f"temp_drive_pdf_{file_item['id']}_{os.urandom(4).hex()}.pdf"
-                temp_pdf_path = os.path.join(temp_dir, temp_pdf_filename)
+                temp_pdf_path = os.path.join(temp_dir, temp_pdf_filename);
 
                 with open(temp_pdf_path, 'wb') as f_temp:
                     f_temp.write(fh.getvalue())

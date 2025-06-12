@@ -19,16 +19,42 @@
     </style>
   </head>
   <body>
-    <h2>📄 Sync a Purchase Order from Google Drive</h2>
-    <form action="/sync" method="post">
-      <label for="file_id">Google Drive File ID:</label><br />
-      <input type="text" id="file_id" name="file_id" required /><br /><br />
-      <button type="submit">🔄 Sync PO</button>
-    </form>
-
-    <hr />
-
     <h2>📊 Forecast Pivot Table</h2>
+    <form method="get" action="/forecast" style="margin-bottom: 20px;">
+      <label for="client_name">Client Name:</label>
+      <select name="client_name" id="client_name">
+        <option value="">All</option>
+        {% for name in client_names %}
+          <option value="{{ name }}" {% if name == selected_client %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      &nbsp;&nbsp;
+      <label for="po_no">PO No:</label>
+      <select name="po_no" id="po_no">
+        <option value="">All</option>
+        {% for po in po_nos %}
+          <option value="{{ po }}" {% if po == selected_po %}selected{% endif %}>{{ po }}</option>
+        {% endfor %}
+      </select>
+      &nbsp;&nbsp;
+      <label for="start_month">Start Month:</label>
+      <select name="start_month" id="start_month">
+        <option value="">Any</option>
+        {% for m in months %}
+          <option value="{{ m }}" {% if m == selected_start_month %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+      &nbsp;&nbsp;
+      <label for="end_month">End Month:</label>
+      <select name="end_month" id="end_month">
+        <option value="">Any</option>
+        {% for m in months %}
+          <option value="{{ m }}" {% if m == selected_end_month %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+      &nbsp;&nbsp;
+      <button type="submit">Apply Filters</button>
+    </form>
     <div>{{ pivot_table | safe }}</div>
   </body>
 </html>
