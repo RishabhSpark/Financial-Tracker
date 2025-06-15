@@ -3,11 +3,7 @@ import logging.handlers
 import os
 import yaml
 
-import logging
-import os
-import yaml
-
-def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Logger:
+def setup_logger(yaml_path: str) -> logging.Logger:
     # Load YAML config
     with open(yaml_path, 'r') as f:
         config = yaml.safe_load(f)
@@ -32,21 +28,17 @@ def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Lo
     pattern = format_cfg.get('pattern', '[%(asctime)s] [%(levelname)s] %(name)s: %(message)s')
     datefmt = format_cfg.get('datefmt', '%Y-%m-%d %H:%M:%S')
 
-    # Create logger
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.propagate = False  # Avoid duplicate logs if root logger configured
 
-    # Clear existing handlers if any
     if logger.hasHandlers():
         logger.handlers.clear()
 
     formatter = logging.Formatter(pattern, datefmt)
 
-    # Create log directory if needed
     os.makedirs(log_dir, exist_ok=True)
 
-    # Console handler
     if console_cfg.get('enabled', False):
         console_level_name = console_cfg.get('level', level_name)
         console_level = getattr(logging, console_level_name.upper(), level)
@@ -69,4 +61,14 @@ def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Lo
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
+    if file_cfg.get('rotating', False):
+        fh = logging.handlers.RotatingFileHandler(
+            filename=file_path,
+            maxBytes=file_cfg.get('maxBytes', 1048576),
+            backupCount=file_cfg.get('backupCount', 5),
+            encoding='utf-8'
+        )
+    else:
+        fh = logging.FileHandler(filename=file_path, mode='a', encoding='utf-8')
+        
     return logger

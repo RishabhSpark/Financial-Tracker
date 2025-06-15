@@ -1,0 +1,18 @@
+logger:
+  name: extraction_logger
+  level: DEBUG
+  log_dir: logs
+  file_name: extraction.log
+  handlers:
+    console:
+      enabled: true
+      level: INFO
+    file:
+      enabled: true
+      level: DEBUG
+      rotating: true
+      maxBytes: 1048576  # 1MB
+      backupCount: 5
+  format:
+    pattern: '[%(asctime)s] [%(levelname)s] %(name)s: %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
