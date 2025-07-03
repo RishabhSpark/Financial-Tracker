@@ -3,7 +3,7 @@ import logging.handlers
 import os
 import yaml
 
-def setup_logger(yaml_path: str) -> logging.Logger:
+def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Logger:
     # Load YAML config
     with open(yaml_path, 'r') as f:
         config = yaml.safe_load(f)
