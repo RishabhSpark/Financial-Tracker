@@ -1,6 +1,7 @@
 import os
 import io
 import tempfile
+import numpy as np
 import pandas as pd
 from PyPDF2 import PdfReader
 from google_auth_oauthlib.flow import Flow
@@ -16,7 +17,6 @@ from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
 from extractor.pdf_processing.format_po import format_po_for_llm
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -383,6 +383,7 @@ def generate_pivot_table_html(df=None):
         month_cols = formatted_month_cols
         if month_cols:
             pivot['Total'] = pivot[month_cols].sum(axis=1)
+            pivot['Total'] = np.ceil(pivot['Total'])
         else:
             pivot['Total'] = 0.0
 
