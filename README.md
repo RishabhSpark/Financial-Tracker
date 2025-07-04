@@ -18,6 +18,58 @@ A web-based platform for tracking, forecasting, and managing purchase orders (PO
 - Python 3.8+
 - Git
 
+## Google Drive API Integration (OAuth 2.0)
+### 1. Enable Google Drive API
+1. Go to the Google Cloud Console.
+2. Create a new project or select an existing one.
+3. Navigate to APIs & Services > Library.
+4. Search for Google Drive API and click Enable.
+
+### 2. Configure OAuth Consent Screen
+1. Go to APIs & Services > OAuth consent screen.
+2. Choose External or Internal depending on your use case.
+3. Fill in:
+4. App name
+5. User support email
+6. Developer contact info
+7. Add test users (your own Gmail address for testing).
+8. Save and continue (you don't need to publish yet).
+
+### 3. Create OAuth 2.0 Credentials
+1. Go to APIs & Services > Credentials.
+2. Click Create Credentials → OAuth client ID.
+3. Choose Web application.
+4. Set an authorized redirect URI:
+```bash
+http://localhost:5000/oauth2callback
+```
+(This must match exactly what your Flask app uses)
+5. Download the generated client_secret.json file.
+
+### 4. Add the Secrets File
+Place the downloaded file in your project at:
+```bash
+financial-tracker/client_secret.json
+```
+✅ Make sure this file is listed in .gitignore and never pushed to GitHub.
+
+### 5. Update Environment Variables
+Create or update your .env file inside financial-tracker/ with:
+```env
+GOOGLE_CLIENT_SECRET_FILE=client_secret.json
+SCOPES=https://www.googleapis.com/auth/drive.readonly
+```
+You can change the scopes as needed.
+
+### 6. Authenticate with Google Drive
+When you run the app:
+- Visit http://localhost:5000
+- Sign in with your Google account
+- Approve access to your Drive
+- You’ll be redirected back, and your credentials will be stored in the session
+
+
+
 ## Installation
 1. Clone the repository:
 ```
