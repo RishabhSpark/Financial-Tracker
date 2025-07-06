@@ -26,6 +26,7 @@ def export_all_pos_json(output_path="output/purchase_orders.json"):
             "start_date": po.start_date,
             "end_date": po.end_date,
             "duration_months": po.duration_months,
+            "project_owner": po.project_owner,
         }
         
         logger.debug(f"Processing PO ID: {po.po_id} with payment_type: {po.payment_type}")

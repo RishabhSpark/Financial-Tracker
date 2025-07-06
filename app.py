@@ -353,13 +353,13 @@ def generate_pivot_table_html(df=None):
                 all_months_for_pivot = pd.date_range(
                     min_month, max_month, freq='MS').strftime('%Y-%m').tolist()
 
-        for col in ["Client Name", "PO No", "Month"]:
+        for col in ["Client Name", "PO No", "Project Owner", "Month"]:
             if col not in df.columns:
                 df[col] = pd.Series(dtype='object')
 
         # --- Pivot Table with Totals ---
         pivot = df.pivot_table(
-            index=["Client Name", "PO No"],
+            index=["Client Name", "PO No", "Project Owner"],
             columns="Month",
             values="Inflow (USD)",
             aggfunc="sum",

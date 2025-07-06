@@ -111,7 +111,7 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                 all_months_for_pivot = pd.date_range(min_month, max_month, freq='MS').strftime('%Y-%m')
 
                 pivot = combined_df.pivot_table(
-                    index=["Client Name", "PO No"],
+                    index=["Client Name", "PO No", "Project Owner"],
                     columns="Month", # Uses the 'YYYY-MM' string 'Month' column
                     values="Inflow (USD)",
                     aggfunc="sum",
@@ -121,8 +121,16 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                 pivot = pivot.reindex(columns=all_months_for_pivot, fill_value=0.0) # Ensure float zero
                 pivot.reset_index(inplace=True) 
 
+                # Reorder columns: S.No, Client Name, PO No, Project Owner, <months>
                 if not pivot.empty:
+                    # Remove S.No if already present to avoid duplication
+                    if 'S.No' in pivot.columns:
+                        pivot = pivot.drop(columns=['S.No'])
+                    # Find all month columns (should be after Project Owner)
+                    month_cols = [col for col in pivot.columns if col not in ['Client Name', 'PO No', 'Project Owner']]
+                    new_order = ['S.No', 'Client Name', 'PO No', 'Project Owner'] + month_cols
                     pivot.insert(0, 'S.No', range(1, 1 + len(pivot)))
+                    pivot = pivot[new_order]
 
                 with pd.ExcelWriter(pivot_excel_path, engine='openpyxl') as writer:
                     pivot.to_excel(writer, index=False, sheet_name="Forecast")
