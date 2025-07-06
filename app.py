@@ -134,7 +134,7 @@ def oauth2callback():
     flow.fetch_token(authorization_response=request.url)
     creds = flow.credentials
     session['credentials'] = creds_to_dict(creds)
-    return redirect(url_for('drive_tree'))  # Changed from 'forecast'
+    return redirect(url_for('drive_folder_upload'))  # Changed from 'drive_tree'
 
 
 @app.route('/process_pdf/<file_id>')
@@ -842,6 +842,91 @@ def download_xlsx():
     run_forecast_processing(input_json_path="./output/purchase_orders.json")
     xlsx_path = os.path.abspath("forecast_pivot.xlsx")
     return send_file(xlsx_path, as_attachment=True, download_name="forecast_pivot.xlsx")
+
+
+@app.route('/drive_folder_upload', methods=['GET', 'POST'])
+@login_required
+def drive_folder_upload():
+    if 'credentials' not in session:
+        return redirect(url_for('authorize'))
+    creds = Credentials.from_authorized_user_info(session['credentials'])
+    service = build('drive', 'v3', credentials=creds)
+    error = None
+    pdf_files = []
+    folder_id = None
+    folder_url = ''
+    llm_summary = None
+    if request.method == 'POST':
+        folder_url = request.form.get('folder_url', '').strip()
+        folder_id = request.form.get('folder_id', '').strip()
+        run_llm = request.form.get('run_llm')
+        # If folder_url is provided, extract folder_id from it
+        if folder_url:
+            import re
+            match = re.search(r'/folders/([a-zA-Z0-9_-]+)', folder_url)
+            if match:
+                folder_id = match.group(1)
+            else:
+                folder_id = folder_url  # Assume user pasted the ID directly
+        if folder_id:
+            try:
+                folder_metadata = service.files().get(fileId=folder_id, fields="id, name, mimeType").execute()
+                if folder_metadata.get('mimeType') != 'application/vnd.google-apps.folder':
+                    error = f"The provided ID '{folder_id}' is not a folder."
+                    folder_id = None
+                else:
+                    response = service.files().list(
+                        q=f"'{folder_id}' in parents and trashed = false and mimeType = 'application/pdf'",
+                        fields="files(id, name, modifiedTime)",
+                    ).execute()
+                    pdf_files = response.get('files', [])
+                    if run_llm and pdf_files:
+                        # Run LLM pipeline on all PDFs in the folder
+                        all_files_in_folder = list_all_files_in_folder(service, folder_id)
+                        pdfs = [f for f in all_files_in_folder if f.get('mimeType') == 'application/pdf']
+                        extracted_texts_summary = []
+                        for file_item in pdfs:
+                            file_name = file_item['name']
+                            file_id = file_item['id']
+                            try:
+                                request_file = service.files().get_media(fileId=file_id)
+                                fh = io.BytesIO()
+                                downloader = MediaIoBaseDownload(fh, request_file)
+                                done = False
+                                while not done:
+                                    status, done = downloader.next_chunk()
+                                fh.seek(0)
+                                temp_pdf_path = None
+                                try:
+                                    temp_dir = tempfile.gettempdir()
+                                    temp_pdf_filename = f"temp_drive_pdf_{file_id}_{os.urandom(4).hex()}.pdf"
+                                    temp_pdf_path = os.path.join(temp_dir, temp_pdf_filename)
+                                    with open(temp_pdf_path, 'wb') as f_temp:
+                                        f_temp.write(fh.getvalue())
+                                    po_json_data_for_db = run_pipeline(temp_pdf_path)
+                                    if po_json_data_for_db:
+                                        insert_or_replace_po(po_json_data_for_db)
+                                        extracted_texts_summary.append(f"Inserted/replaced PO data for: {file_name}")
+                                    else:
+                                        extracted_texts_summary.append(f"No data extracted from {file_name}. DB insert skipped.")
+                                finally:
+                                    if temp_pdf_path and os.path.exists(temp_pdf_path):
+                                        os.remove(temp_pdf_path)
+                            except Exception as error:
+                                extracted_texts_summary.append(f"Error processing: {file_name} - {error}")
+                            finally:
+                                if fh:
+                                    fh.close()
+                        from extractor.export import export_all_pos_json, export_all_csvs
+                        from forecast_processor import run_forecast_processing
+                        export_all_pos_json()
+                        export_all_csvs()
+                        run_forecast_processing(input_json_path="./output/purchase_orders.json")
+                        llm_summary = extracted_texts_summary
+            except Exception as e:
+                error = f"Invalid folder link or error accessing folder: {e}"
+                folder_id = None
+    return render_template('drive_folder_upload.html', error=error, pdf_files=pdf_files, folder_id=folder_id, folder_url=folder_url, llm_summary=llm_summary)
 
 
 if __name__ == '__main__':
