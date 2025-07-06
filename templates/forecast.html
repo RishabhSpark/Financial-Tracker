@@ -49,53 +49,41 @@
         border-right: 2px solid #dee2e6;
         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
       }
-      
       .table th:nth-child(2),
       .table td:nth-child(2) {
         position: sticky;
-        left: 60px; /* Adjust based on S.No column width */
+        left: 60px; /* S.No width */
         background-color: #e3f2fd !important;
         z-index: 14;
         border-right: 2px solid #dee2e6;
         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
       }
-      
       .table th:nth-child(3),
       .table td:nth-child(3) {
         position: sticky;
-        left: 200px; /* Adjust based on S.No + Client Name column widths */
+        left: 200px; /* S.No + Client Name width */
         background-color: #e3f2fd !important;
         z-index: 13;
         border-right: 2px solid #dee2e6;
         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
       }
-      
       .table th:nth-child(4),
       .table td:nth-child(4) {
         position: sticky;
-        left: 300px; /* Adjust based on S.No + Client Name + PO No column widths */
+        left: 300px; /* S.No + Client Name + PO No width */
         background-color: #e3f2fd !important;
         z-index: 12;
         border-right: 2px solid #dee2e6;
         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
       }
-      
       /* Ensure header cells have higher z-index */
-      .table th:nth-child(1),
-      .table th:nth-child(2),
-      .table th:nth-child(3),
-      .table th:nth-child(4) {
+      .table th:nth-child(-n+4) {
         z-index: 20;
         background-color: #2196f3 !important;
         color: white !important;
         font-weight: bold;
       }
-      
-      /* Add some styling to make frozen columns more visible */
-      .table td:nth-child(1),
-      .table td:nth-child(2),
-      .table td:nth-child(3),
-      .table td:nth-child(4) {
+      .table td:nth-child(-n+4) {
         font-weight: 500;
       }
       
@@ -216,6 +204,15 @@
                 </div>
               </div>
 
+              <div class="col-md-3">
+                <label for="project_owner" class="form-label"><strong>Project Owner:</strong></label>
+                <select name="project_owner" id="project_owner" class="form-select" multiple size="4">
+                  {% for owner in project_owners %}
+                  <option value="{{ owner }}" {% if owner in selected_owner %}selected{% endif %}>{{ owner }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
               <div class="col-md-2">
                 <label for="start_month" class="form-label"
                   ><strong>Start Month:</strong></label
@@ -286,53 +283,31 @@
             "table-hover",
             "table-bordered"
           );
-          
           // Calculate and set dynamic left positions for frozen columns
           function updateFrozenColumnPositions() {
-            const firstCol = table.querySelector('th:nth-child(1), td:nth-child(1)');
-            const secondCol = table.querySelector('th:nth-child(2), td:nth-child(2)');
-            const thirdCol = table.querySelector('th:nth-child(3), td:nth-child(3)');
-            
-            if (firstCol && secondCol && thirdCol) {
-              const firstColWidth = firstCol.offsetWidth;
-              const secondColWidth = secondCol.offsetWidth;
-              const thirdColWidth = thirdCol.offsetWidth;
-              
-              // Update CSS custom properties for column positions
-              document.documentElement.style.setProperty('--first-col-width', firstColWidth + 'px');
-              document.documentElement.style.setProperty('--second-col-left', firstColWidth + 'px');
-              document.documentElement.style.setProperty('--third-col-left', (firstColWidth + secondColWidth) + 'px');
-              document.documentElement.style.setProperty('--fourth-col-left', (firstColWidth + secondColWidth + thirdColWidth) + 'px');
-              
-              // Apply the calculated positions
+            const col1 = table.querySelector('th:nth-child(1), td:nth-child(1)');
+            const col2 = table.querySelector('th:nth-child(2), td:nth-child(2)');
+            const col3 = table.querySelector('th:nth-child(3), td:nth-child(3)');
+            const col4 = table.querySelector('th:nth-child(4), td:nth-child(4)');
+            if (col1 && col2 && col3 && col4) {
+              const w1 = col1.offsetWidth;
+              const w2 = col2.offsetWidth;
+              const w3 = col3.offsetWidth;
+              const w4 = col4.offsetWidth;
+              const left2 = w1;
+              const left3 = w1 + w2;
+              const left4 = w1 + w2 + w3;
               const style = document.createElement('style');
               style.textContent = `
-                .table th:nth-child(2), .table td:nth-child(2) {
-                  left: ${firstColWidth}px !important;
-                  background-color: #e3f2fd !important;
-                }
-                .table th:nth-child(3), .table td:nth-child(3) {
-                  left: ${firstColWidth + secondColWidth}px !important;
-                  background-color: #e3f2fd !important;
-                }
-                .table th:nth-child(4), .table td:nth-child(4) {
-                  left: ${firstColWidth + secondColWidth + thirdColWidth}px !important;
-                  background-color: #e3f2fd !important;
-                }
-                .table th:nth-child(1), .table th:nth-child(2), .table th:nth-child(3), .table th:nth-child(4) {
-                  background-color: #2196f3 !important;
-                  color: white !important;
-                  z-index: 20 !important;
-                }
-                .table td:nth-child(1), .table td:nth-child(2), .table td:nth-child(3), .table td:nth-child(4) {
-                  background-color: #e3f2fd !important;
-                }
+                .table th:nth-child(2), .table td:nth-child(2) { left: ${left2}px !important; }
+                .table th:nth-child(3), .table td:nth-child(3) { left: ${left3}px !important; }
+                .table th:nth-child(4), .table td:nth-child(4) { left: ${left4}px !important; }
+                .table th:nth-child(-n+4) { background-color: #2196f3 !important; color: white !important; z-index: 20 !important; }
+                .table td:nth-child(-n+4) { background-color: #e3f2fd !important; }
               `;
               document.head.appendChild(style);
             }
           }
-          
-          // Update positions after table is fully rendered
           setTimeout(updateFrozenColumnPositions, 100);
           
           const poNoIdx = Array.from(table.rows[0].cells).findIndex(

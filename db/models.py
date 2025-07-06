@@ -14,6 +14,7 @@ purchase_orders = Table(
     Column('end_date', String),
     Column('duration_months', Integer),
     Column('payment_frequency', Integer, nullable=True),
+    Column('project_owner', String, nullable=True),
 )
 
 milestones = Table(

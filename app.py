@@ -219,9 +219,6 @@ def download_pdf(file_id):
 @login_required
 def forecast():
     creds = Credentials.from_authorized_user_info(session['credentials'])
-    # pivot_html = generate_pivot_table_html()
-
-    # return render_template("forecast.html", pivot_table=pivot_html)
     def parse_checklist(param):
         val = request.args.get(param, default=None, type=str)
         if val is None or val == '':
@@ -230,9 +227,8 @@ def forecast():
 
     client_names_selected = parse_checklist('client_name')
     po_nos_selected = parse_checklist('po_no')
-    # For months, use single value from <input type='month'>
-    start_month_selected = request.args.get(
-        'start_month', default=None, type=str)
+    project_owners_selected = parse_checklist('project_owner')
+    start_month_selected = request.args.get('start_month', default=None, type=str)
     end_month_selected = request.args.get('end_month', default=None, type=str)
 
     df = None
@@ -251,8 +247,9 @@ def forecast():
                     ) if 'PO No' in df.columns else []
     months = sorted(df['Month'].dropna().unique()
                     ) if 'Month' in df.columns else []
+    project_owners = sorted(df['Project Owner'].dropna().unique()) if 'Project Owner' in df.columns else []
 
-    # Apply filters (multi-select for client/po, range for months)
+    # Apply filters (multi-select for client/po/owner, range for months)
     filtered_df = df.copy()
     if client_names_selected:
         filtered_df = filtered_df[filtered_df['Client Name'].isin(
@@ -260,6 +257,8 @@ def forecast():
     if po_nos_selected:
         filtered_df = filtered_df[filtered_df['PO No'].astype(
             str).isin(po_nos_selected)]
+    if project_owners_selected:
+        filtered_df = filtered_df[filtered_df['Project Owner'].isin(project_owners_selected)]
     if start_month_selected:
         filtered_df = filtered_df[filtered_df['Month'] >= start_month_selected]
     if end_month_selected:
@@ -274,8 +273,10 @@ def forecast():
         client_names=client_names,
         po_nos=po_nos,
         months=months,
+        project_owners=project_owners,
         selected_client=client_names_selected,
         selected_po=po_nos_selected,
+        selected_owner=project_owners_selected,
         selected_start_month=[
             start_month_selected] if start_month_selected else [],
         selected_end_month=[end_month_selected] if end_month_selected else []
@@ -781,6 +782,7 @@ def edit_po(po_id):
             'end_date': request.form.get('end_date'),
             'duration_months': request.form.get('duration_months'),
             'payment_frequency': request.form.get('payment_frequency'),
+            'project_owner': request.form.get('project_owner'),
         }
         # Handle milestones and payment_schedule
         if po_data['payment_type'] == 'milestone':

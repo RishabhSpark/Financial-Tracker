@@ -23,6 +23,7 @@ class PurchaseOrder(Base):
     end_date = Column(String)
     duration_months = Column(Integer)
     payment_frequency = Column(Integer, nullable=True)
+    project_owner = Column(String, nullable=True)
 
     milestones = relationship("Milestone", cascade="all, delete-orphan", backref="purchase_order")
     payment_schedule = relationship("PaymentSchedule", cascade="all, delete-orphan", backref="purchase_order")

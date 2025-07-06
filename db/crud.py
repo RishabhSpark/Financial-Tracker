@@ -17,6 +17,7 @@ def insert_or_replace_po(po_dict: dict):
         existing_po.end_date = po_dict.get("end_date")
         existing_po.duration_months = po_dict.get("duration_months")
         existing_po.payment_frequency = po_dict.get("payment_frequency")
+        existing_po.project_owner = po_dict.get("project_owner")
         # Remove old milestones and payment schedules
         session.query(Milestone).filter_by(po_id=po_id).delete()
         session.query(PaymentSchedule).filter_by(po_id=po_id).delete()
@@ -42,7 +43,8 @@ def insert_or_replace_po(po_dict: dict):
         start_date=po_dict.get("start_date"),
         end_date=po_dict.get("end_date"),
         duration_months=po_dict.get("duration_months"),
-        payment_frequency=po_dict.get("payment_frequency")
+        payment_frequency=po_dict.get("payment_frequency"),
+        project_owner=po_dict.get("project_owner")
     )
     session.add(po)
     if po.payment_type == "milestone":
@@ -72,7 +74,8 @@ def get_po_with_schedule(po_id: str):
             "start_date": po.start_date,
             "end_date": po.end_date,
             "duration_months": po.duration_months,
-            "payment_frequency": po.payment_frequency
+            "payment_frequency": po.payment_frequency,
+            "project_owner": po.project_owner
         }
 
         # Add payment schedule list if any
