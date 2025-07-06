@@ -2,31 +2,31 @@
   {
     "client_name": "Fiona Inc",
     "po_id": "34523",
-    "amount": 80000.0,
+    "amount": 100000.0,
     "status": "Confirmed",
     "payment_terms": 30,
     "payment_type": "milestone",
     "start_date": "01-04-2025",
     "end_date": "31-12-2025",
-    "duration_months": null,
-    "project_owner": null,
+    "duration_months": "",
+    "project_owner": "ProjectOwner1",
     "milestones": [
       {
         "milestone_name": "initial",
-        "milestone_description": null,
-        "milestone_due_date": null,
+        "milestone_description": "None",
+        "milestone_due_date": "None",
         "milestone_percentage": 20.0
       },
       {
         "milestone_name": "milestone_1",
-        "milestone_description": null,
-        "milestone_due_date": null,
+        "milestone_description": "None",
+        "milestone_due_date": "None",
         "milestone_percentage": 40.0
       },
       {
         "milestone_name": "milestone_2",
-        "milestone_description": null,
-        "milestone_due_date": null,
+        "milestone_description": "None",
+        "milestone_due_date": "None",
         "milestone_percentage": 40.0
       }
     ]
@@ -34,7 +34,7 @@
   {
     "client_name": "Fiona Inc",
     "po_id": "1234567345",
-    "amount": 120000.0,
+    "amount": 150000.0,
     "status": "Confirmed",
     "payment_terms": 60,
     "payment_type": "periodic",
