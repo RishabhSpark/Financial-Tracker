@@ -881,13 +881,20 @@ def drive_folder_upload():
                     ).execute()
                     pdf_files = response.get('files', [])
                     if run_llm and pdf_files:
-                        # Run LLM pipeline on all PDFs in the folder
+                        # --- NEW LOGIC: Only process new files not in DB ---
                         all_files_in_folder = list_all_files_in_folder(service, folder_id)
                         pdfs = [f for f in all_files_in_folder if f.get('mimeType') == 'application/pdf']
                         extracted_texts_summary = []
+                        # Get all files in DB (by file ID)
+                        db_files = get_all_drive_files()  # {name: (last_edited, id)}
+                        db_file_ids = set(db_id for (_, db_id) in db_files.values())
                         for file_item in pdfs:
                             file_name = file_item['name']
                             file_id = file_item['id']
+                            # Only process if file_id not in DB
+                            if file_id in db_file_ids:
+                                extracted_texts_summary.append(f"Skipped (already processed): {file_name}")
+                                continue
                             try:
                                 request_file = service.files().get_media(fileId=file_id)
                                 fh = io.BytesIO()

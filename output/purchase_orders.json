@@ -34,14 +34,14 @@
   {
     "client_name": "Fiona Inc",
     "po_id": "1234567345",
-    "amount": 80000.0,
+    "amount": 120000.0,
     "status": "Confirmed",
     "payment_terms": 60,
     "payment_type": "periodic",
     "start_date": "01-06-2025",
     "end_date": "31-08-2026",
-    "duration_months": null,
-    "project_owner": null,
+    "duration_months": "",
+    "project_owner": "ProjectOwner2",
     "payment_schedule": {
       "payment_frequency": 1
     }
@@ -55,48 +55,48 @@
     "payment_type": "distributed",
     "start_date": "10-04-2025",
     "end_date": "31-12-2025",
-    "duration_months": null,
-    "project_owner": null,
+    "duration_months": "",
+    "project_owner": "ProjectOwner2",
     "payment_schedule": [
       {
         "payment_date": "15-04-2025",
         "payment_amount": 5000.0,
-        "payment_description": null
+        "payment_description": "None"
       },
       {
         "payment_date": "01-05-2025",
         "payment_amount": 5000.0,
-        "payment_description": null
+        "payment_description": "None"
       },
       {
         "payment_date": "01-06-2025",
         "payment_amount": 10000.0,
-        "payment_description": null
+        "payment_description": "None"
       },
       {
         "payment_date": "01-07-2025",
         "payment_amount": 10000.0,
-        "payment_description": null
+        "payment_description": "None"
       },
       {
         "payment_date": "01-08-2025",
         "payment_amount": 15000.0,
-        "payment_description": null
+        "payment_description": "None"
       },
       {
         "payment_date": "01-09-2025",
         "payment_amount": 15000.0,
-        "payment_description": null
+        "payment_description": "None"
       },
       {
         "payment_date": "01-10-2025",
         "payment_amount": 10000.0,
-        "payment_description": null
+        "payment_description": "None"
       },
       {
         "payment_date": "01-11-2025",
         "payment_amount": 10000.0,
-        "payment_description": null
+        "payment_description": "None"
       }
     ]
   }
