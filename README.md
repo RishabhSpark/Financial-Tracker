@@ -47,12 +47,34 @@ A web-based platform for tracking, forecasting, and managing purchase orders (PO
 3. Choose Web application.
 4. Set an authorized redirect URI:
 
-```bash
-http://localhost:5000/oauth2callback
+Add both of these:
+
+```cpp
+
+http://localhost
+http://127.0.0.1
 ```
+
+Example: 
+```cpp
+
+http://localhost:5000
+http://127.0.0.1:5000
+```
+
+✅ Authorized Redirect URIs
+Add both of these as well (adjust the port if needed):
+Example:
+```bash
+
+http://localhost:5000/oauth2callback
+http://127.0.0.1:5000/oauth2callback
+```
+These URIs must exactly match your redirect route used in the app (usually /oauth2callback).
 
 (This must match exactly what your Flask app uses)
 5. Download the generated client_secret.json file.
+
 
 ### 4. Add the Secrets File
 
