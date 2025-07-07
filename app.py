@@ -65,11 +65,21 @@ def load_logged_in_user():
 def add_unconfirmed_order():
     if request.method == 'POST':
         form = request.form
+        
+        # Normalize status to one of the allowed values
+        raw_status = form.get("status", "unconfirmed").strip().lower()
+        if raw_status == "confirmed":
+            status = "Confirmed"
+        elif raw_status == "unconfirmed":
+            status = "Unconfirmed"
+        else:
+            status = "unspecified"
+        
         po_dict = {
             "po_id": generate_unconfirmed_po_id(),
             "client_name": form.get("client_name"),
             "amount": form.get("amount"),
-            "status": "Unconfirmed",
+            "status": status,
             "payment_terms": form.get("payment_terms"),
             "payment_type": form.get("payment_type"),
             "start_date": form.get("start_date"),
@@ -78,6 +88,7 @@ def add_unconfirmed_order():
             "project_owner": form.get("project_owner"),
             "payment_frequency": form.get("payment_frequency"),
         }
+        
         # Handle distributed payments
         if form.get("payment_type") == "distributed":
             payment_schedule = []

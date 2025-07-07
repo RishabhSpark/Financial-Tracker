@@ -138,7 +138,7 @@
           <h2 class="mb-0">Add Unconfirmed Order</h2>
         </div>
         <div class="card-body p-4">
-          <form action="/submit-po" method="post">
+          <form action="/add_client" method="post">
             <div class="form-section">
               <h3 class="section-title">Order Information</h3>
               <div class="row g-3">
@@ -197,6 +197,29 @@
                     required
                   />
                 </div>
+                <div class="col-md-6">
+                  <label for="status" class="form-label">Status</label>
+                  <select
+                    class="form-select"
+                    id="status"
+                    name="status"
+                    required
+                  >
+                    <option value="Unconfirmed" {% if form_data.status == 'Unconfirmed' %}selected{% endif %}>Unconfirmed</option>
+                    <option value="Confirmed" {% if form_data.status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="unspecified" {% if form_data.status == 'unspecified' %}selected{% endif %}>Unspecified</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="project_owner" class="form-label">Project Owner</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="project_owner"
+                    name="project_owner"
+                    value="{{ form_data.project_owner or '' }}"
+                  />
+                </div>
               </div>
             </div>
 
@@ -229,26 +252,57 @@
       />
     </div>
 
-    <!-- Distributed + Periodic -->
-    <div class="col-md-6 conditional distributed periodic" style="display: none;">
-      <label for="start_date" class="form-label">Expected Start Date</label>
+    <!-- Common fields for all payment types -->
+    <div class="col-md-6">
+      <label for="start_date_common" class="form-label">Project Start Date</label>
       <input
         type="date"
         class="form-control"
-        id="start_date"
+        id="start_date_common"
         name="start_date"
+        value="{{ form_data.start_date or '' }}"
       />
     </div>
 
-    <div class="col-md-6 conditional distributed periodic" style="display: none;">
-      <label for="duration_months" class="form-label">Expected Duration (months)</label>
+    <div class="col-md-6">
+      <label for="end_date_common" class="form-label">Project End Date</label>
+      <input
+        type="date"
+        class="form-control"
+        id="end_date_common"
+        name="end_date"
+        value="{{ form_data.end_date or '' }}"
+      />
+    </div>
+
+    <div class="col-md-6">
+      <label for="duration_months_common" class="form-label">Project Duration (months)</label>
       <input
         type="number"
         class="form-control"
-        id="duration_months"
+        id="duration_months_common"
         name="duration_months"
+        min="1"
+        value="{{ form_data.duration_months or '' }}"
+        placeholder="e.g., 6 for 6 months"
       />
     </div>
+
+
+
+    <div class="col-md-6 conditional periodic" style="display: none;">
+      <label for="payment_frequency" class="form-label">Payment Frequency (months)</label>
+      <input
+        type="number"
+        class="form-control"
+        id="payment_frequency"
+        name="payment_frequency"
+        min="1"
+        placeholder="e.g., 1 for monthly, 3 for quarterly"
+      />
+    </div>
+  </div>
+</div>
 
 <div class="col-12 conditional distributed" style="display: none;">
   <label class="form-label">Monthly Payment Schedule</label>
