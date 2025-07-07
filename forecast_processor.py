@@ -111,7 +111,7 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                 all_months_for_pivot = pd.date_range(min_month, max_month, freq='MS').strftime('%Y-%m')
 
                 pivot = combined_df.pivot_table(
-                    index=["Client Name", "PO No", "Project Owner"],
+                    index=["Client Name", "PO No", "Project Owner", "Status"],
                     columns="Month", # Uses the 'YYYY-MM' string 'Month' column
                     values="Inflow (USD)",
                     aggfunc="sum",
@@ -121,14 +121,14 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                 pivot = pivot.reindex(columns=all_months_for_pivot, fill_value=0.0) # Ensure float zero
                 pivot.reset_index(inplace=True) 
 
-                # Reorder columns: S.No, Client Name, PO No, Project Owner, <months>
+                # Reorder columns: S.No, Client Name, PO No, Project Owner, Status, <months>
                 if not pivot.empty:
                     # Remove S.No if already present to avoid duplication
                     if 'S.No' in pivot.columns:
                         pivot = pivot.drop(columns=['S.No'])
-                    # Find all month columns (should be after Project Owner)
-                    month_cols = [col for col in pivot.columns if col not in ['Client Name', 'PO No', 'Project Owner']]
-                    new_order = ['S.No', 'Client Name', 'PO No', 'Project Owner'] + month_cols
+                    # Find all month columns (should be after Status)
+                    month_cols = [col for col in pivot.columns if col not in ['Client Name', 'PO No', 'Project Owner', 'Status']]
+                    new_order = ['S.No', 'Client Name', 'PO No', 'Project Owner', 'Status'] + month_cols
                     pivot.insert(0, 'S.No', range(1, 1 + len(pivot)))
                     pivot = pivot[new_order]
 
@@ -139,17 +139,14 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                     workbook = writer.book
                     worksheet = writer.sheets["Forecast"]
                     
-                    # Assuming 'Client Name' and 'PO No' are the first two columns,
+                    # Assuming 'Client Name', 'PO No', 'Project Owner', and 'Status' are columns,
                     # and 'S.No' is inserted at the beginning if pivot is not empty.
                     # The S.No column is at index 1 (0-based) if it exists.
-                    # Client Name and PO No are after S.No or at the beginning.
+                    # Client Name, PO No, Project Owner, and Status are after S.No or at the beginning.
                     
                     s_no_offset = 1 if 'S.No' in pivot.columns else 0
                     # Start formatting from the first month column
-                    # The month columns start after 'Client Name', 'PO No', and potentially 'S.No'
-                    # Typically, 'Client Name' and 'PO No' are the first two columns of the original pivot index.
-                    # If S.No is added, it's at column 0. Client Name at 1, PO No at 2.
-                    # So, month data starts from column index s_no_offset + 2
+                    # The month columns start after 'Client Name', 'PO No', 'Project Owner', 'Status', and potentially 'S.No'
                     
                     first_month_col_idx = 0
                     if 'S.No' in pivot.columns:
@@ -157,6 +154,10 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                     if "Client Name" in pivot.columns: # Should always be true after reset_index
                         first_month_col_idx +=1
                     if "PO No" in pivot.columns: # Should always be true after reset_index
+                        first_month_col_idx +=1
+                    if "Project Owner" in pivot.columns: # Should always be true after reset_index
+                        first_month_col_idx +=1
+                    if "Status" in pivot.columns: # Should always be true after reset_index
                         first_month_col_idx +=1
 
                     for row in worksheet.iter_rows(min_row=2, # Skip header row

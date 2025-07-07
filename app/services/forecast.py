@@ -238,6 +238,7 @@ def forecast_table(data: Dict) -> pd.DataFrame:
     client_name = data['client_name']
     pay_type = classify_payment_type(data)
     project_owner = data.get('project_owner') or "-"
+    status = data.get('status') or "unknown"
     rows = [
         {
             "Client Name": client_name,
@@ -245,6 +246,7 @@ def forecast_table(data: Dict) -> pd.DataFrame:
             "Inflow (USD)": amount,
             "PO No": po_number,
             "Project Owner": project_owner,
+            "Status": status,
         }
         for month, amount in inflow.items()
     ]

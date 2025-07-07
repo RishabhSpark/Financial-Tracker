@@ -85,14 +85,23 @@
         border-right: 2px solid #dee2e6;
         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
       }
+      .table th:nth-child(6),
+      .table td:nth-child(6) {
+        position: sticky;
+        left: 620px; /* S.No + Client Name + PO No + Project Owner + Status width */
+        background-color: #e3f2fd !important;
+        z-index: 12;
+        border-right: 2px solid #dee2e6;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      }
       /* Ensure header cells have higher z-index */
-      .table th:nth-child(-n+5) {
+      .table th:nth-child(-n+6) {
         z-index: 20;
         background-color: #2196f3 !important;
         color: white !important;
         font-weight: bold;
       }
-      .table td:nth-child(-n+5) {
+      .table td:nth-child(-n+6) {
         background-color: #e3f2fd !important;
         font-weight: 500;
       }
@@ -161,7 +170,7 @@
 
           <div class="form-container">
             <form method="get" action="/forecast" class="row g-3">
-              <div class="col-md-3">
+              <div class="col-md-2">
                 <label for="client_name" class="form-label"
                   ><strong>Client Name:</strong></label
                 >
@@ -190,7 +199,7 @@
                 </select>
               </div>
 
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <label class="form-label"><strong>PO No:</strong></label>
                 <div class="po-checkboxes" id="po_no_checkboxes">
                   {% for po in po_nos %}
@@ -218,7 +227,7 @@
                 </div>
               </div>
 
-              <div class="col-md-3">
+              <div class="col-md-2">
                 <label for="project_owner" class="form-label"><strong>Project Owner:</strong></label>
                 <select name="project_owner" id="project_owner" class="form-select" multiple size="4">
                   {% for owner in project_owners %}
@@ -228,6 +237,15 @@
               </div>
 
               <div class="col-md-2">
+                <label for="status" class="form-label"><strong>Status:</strong></label>
+                <select name="status" id="status" class="form-select" multiple size="4">
+                  {% for status in statuses %}
+                  <option value="{{ status }}" {% if status in selected_status %}selected{% endif %}>{{ status }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-1 col-sm-6">
                 <label for="start_month" class="form-label"
                   ><strong>Start Month:</strong></label
                 >
@@ -240,7 +258,7 @@
                 />
               </div>
 
-              <div class="col-md-2">
+              <div class="col-md-1 col-sm-6">
                 <label for="end_month" class="form-label"
                   ><strong>End Month:</strong></label
                 >
@@ -304,24 +322,28 @@
             const col3 = table.querySelector('th:nth-child(3), td:nth-child(3)');
             const col4 = table.querySelector('th:nth-child(4), td:nth-child(4)');
             const col5 = table.querySelector('th:nth-child(5), td:nth-child(5)');
-            if (col1 && col2 && col3 && col4 && col5) {
+            const col6 = table.querySelector('th:nth-child(6), td:nth-child(6)');
+            if (col1 && col2 && col3 && col4 && col5 && col6) {
               const w1 = col1.offsetWidth;
               const w2 = col2.offsetWidth;
               const w3 = col3.offsetWidth;
               const w4 = col4.offsetWidth;
               const w5 = col5.offsetWidth;
+              const w6 = col6.offsetWidth;
               const left2 = w1;
               const left3 = w1 + w2;
               const left4 = w1 + w2 + w3;
               const left5 = w1 + w2 + w3 + w4;
+              const left6 = w1 + w2 + w3 + w4 + w5;
               const style = document.createElement('style');
               style.textContent = `
                 .table th:nth-child(2), .table td:nth-child(2) { left: ${left2}px !important; }
                 .table th:nth-child(3), .table td:nth-child(3) { left: ${left3}px !important; }
                 .table th:nth-child(4), .table td:nth-child(4) { left: ${left4}px !important; }
-                .table th:nth-child(5), .table td:nth-child(5) { left: ${left5}px !important; background-color: #e3f2fd !important; }
-                .table th:nth-child(-n+5) { background-color: #2196f3 !important; color: white !important; z-index: 20 !important; }
-                .table td:nth-child(-n+5) { background-color: #e3f2fd !important; }
+                .table th:nth-child(5), .table td:nth-child(5) { left: ${left5}px !important; }
+                .table th:nth-child(6), .table td:nth-child(6) { left: ${left6}px !important; background-color: #e3f2fd !important; }
+                .table th:nth-child(-n+6) { background-color: #2196f3 !important; color: white !important; z-index: 20 !important; }
+                .table td:nth-child(-n+6) { background-color: #e3f2fd !important; }
               `;
               document.head.appendChild(style);
             }

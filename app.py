@@ -277,6 +277,7 @@ def forecast():
     client_names_selected = parse_checklist('client_name')
     po_nos_selected = parse_checklist('po_no')
     project_owners_selected = parse_checklist('project_owner')
+    statuses_selected = parse_checklist('status')
     start_month_selected = request.args.get('start_month', default=None, type=str)
     end_month_selected = request.args.get('end_month', default=None, type=str)
 
@@ -297,8 +298,9 @@ def forecast():
     months = sorted(df['Month'].dropna().unique()
                     ) if 'Month' in df.columns else []
     project_owners = sorted(df['Project Owner'].dropna().unique()) if 'Project Owner' in df.columns else []
+    statuses = sorted(df['Status'].dropna().unique()) if 'Status' in df.columns else []
 
-    # Apply filters (multi-select for client/po/owner, range for months)
+    # Apply filters (multi-select for client/po/owner/status, range for months)
     filtered_df = df.copy()
     if client_names_selected:
         filtered_df = filtered_df[filtered_df['Client Name'].isin(
@@ -308,6 +310,8 @@ def forecast():
             str).isin(po_nos_selected)]
     if project_owners_selected:
         filtered_df = filtered_df[filtered_df['Project Owner'].isin(project_owners_selected)]
+    if statuses_selected:
+        filtered_df = filtered_df[filtered_df['Status'].isin(statuses_selected)]
     if start_month_selected:
         filtered_df = filtered_df[filtered_df['Month'] >= start_month_selected]
     if end_month_selected:
@@ -323,9 +327,11 @@ def forecast():
         po_nos=po_nos,
         months=months,
         project_owners=project_owners,
+        statuses=statuses,
         selected_client=client_names_selected,
         selected_po=po_nos_selected,
         selected_owner=project_owners_selected,
+        selected_status=statuses_selected,
         selected_start_month=[
             start_month_selected] if start_month_selected else [],
         selected_end_month=[end_month_selected] if end_month_selected else []
@@ -402,13 +408,13 @@ def generate_pivot_table_html(df=None):
                 all_months_for_pivot = pd.date_range(
                     min_month, max_month, freq='MS').strftime('%Y-%m').tolist()
 
-        for col in ["Client Name", "PO No", "Project Owner", "Month"]:
+        for col in ["Client Name", "PO No", "Project Owner", "Status", "Month"]:
             if col not in df.columns:
                 df[col] = pd.Series(dtype='object')
 
         # --- Pivot Table with Totals ---
         pivot = df.pivot_table(
-            index=["Client Name", "PO No", "Project Owner"],
+            index=["Client Name", "PO No", "Project Owner", "Status"],
             columns="Month",
             values="Inflow (USD)",
             aggfunc="sum",
@@ -447,6 +453,8 @@ def generate_pivot_table_html(df=None):
                 pivot["Client Name"] = pd.Series(dtype='object')
             if "PO No" not in pivot.columns:
                 pivot["PO No"] = pd.Series(dtype='object')
+            if "Status" not in pivot.columns:
+                pivot["Status"] = pd.Series(dtype='object')
 
         # Add a total row at the bottom (sum for each month and for the 'Total' column)
         if not pivot.empty and month_cols:
@@ -492,7 +500,7 @@ def generate_pivot_table_html(df=None):
             border=0,
             index=False,
             formatters={col: format_usd for col in pivot.columns if col not in [
-                'S.No', 'Client Name', 'PO No']},
+                'S.No', 'Client Name', 'PO No', 'Project Owner', 'Status']},
             na_rep=""
         )
         return html
