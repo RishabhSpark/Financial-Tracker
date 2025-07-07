@@ -64,13 +64,62 @@ def load_logged_in_user():
 @app.route('/add_client', methods=['GET', 'POST'])
 def add_unconfirmed_order():
     if request.method == 'POST':
-        # Just print the form data to the terminal for testing
-        form_data = request.form.to_dict()
-        print("Received Unconfirmed Order:")
-        for key, value in form_data.items():
-            print(f"{key}: {value}")
-        return "<h3>Order received. Check console for printed data.</h3><a href='/test-form'>Back</a>"
-
+        form = request.form
+        po_dict = {
+            "po_id": generate_unconfirmed_po_id(),
+            "client_name": form.get("client_name"),
+            "amount": form.get("amount"),
+            "status": "unconfirmed",
+            "payment_terms": form.get("payment_terms"),
+            "payment_type": form.get("payment_type"),
+            "start_date": form.get("start_date"),
+            "end_date": form.get("end_date"),
+            "duration_months": form.get("duration_months"),
+            "project_owner": form.get("project_owner"),
+            "payment_frequency": form.get("payment_frequency"),
+        }
+        # Handle distributed payments
+        if form.get("payment_type") == "distributed":
+            payment_schedule = []
+            for key in form.keys():
+                if key.startswith("payment_month_"):
+                    index = key.split("_")[-1]
+                    date = form.get(f"payment_month_{index}")
+                    amount = form.get(f"payment_amount_{index}")
+                    if date and amount:
+                        payment_schedule.append({"date": date, "amount": amount})
+            po_dict["payment_schedule"] = payment_schedule
+        # Handle milestones
+        if form.get("payment_type") == "milestone":
+            milestones = []
+            total_percentage = 0.0
+            for key in form:
+                if key.startswith("milestone_name_"):
+                    index = key.split("_")[-1]
+                    try:
+                        percent = float(form.get(f"milestone_percent_{index}", 0))
+                    except ValueError:
+                        percent = 0
+                    total_percentage += percent
+                    milestones.append({
+                        "milestone_name": f"Milestone {index}",
+                        "milestone_description": form.get(f"milestone_description_{index}"),
+                        "milestone_due_date": form.get(f"milestone_due_{index}"),
+                        "milestone_percentage": form.get(f"milestone_percent_{index}"),
+                    })
+            if round(total_percentage, 2) != 100.00:
+                flash("❌ Milestone percentages must add up to 100%.", "danger")
+                return render_template("add_unconfirmed_order.html", form_data=request.form)
+            po_dict["milestones"] = milestones
+        # Insert into DB
+        insert_or_replace_po(po_dict)
+        # Update output files
+        from extractor.export import export_all_pos_json, export_all_csvs
+        from forecast_processor import run_forecast_processing
+        export_all_pos_json()
+        export_all_csvs()
+        run_forecast_processing(input_json_path="./output/purchase_orders.json")
+        return redirect(url_for("forecast"))
     return render_template("add_unconfirmed_order.html", form_data={})
 
 
