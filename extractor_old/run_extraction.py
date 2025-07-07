@@ -6,6 +6,7 @@ from app.core.logger import setup_logger
 
 logger = setup_logger()
 
+
 def run_pipeline(pdf_path):
     logger.info(f"Starting pipeline for {pdf_path}...")
     print(f"Processing {pdf_path}...")

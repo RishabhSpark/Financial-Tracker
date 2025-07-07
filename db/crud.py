@@ -112,39 +112,45 @@ def upsert_drive_files_sqlalchemy(files_data: list[dict]):
     """
     session = SessionLocal()
     try:
+        print(f"[DEBUG] upsert_drive_files_sqlalchemy called with {len(files_data)} files.")
         # Get all current DB file IDs for efficient deletion check later
         current_db_file_ids = {db_file.id for db_file in session.query(DriveFile.id).all()}
-        
+        print(f"[DEBUG] Current DB file IDs: {current_db_file_ids}")
         processed_ids = set()
 
         for file_data in files_data:
-            file_id = file_data['id']
-            file_name = file_data['name']
+            file_id = file_data.get('id')
+            file_name = file_data.get('name')
+            print(f"[DEBUG] Processing file: id={file_id}, name={file_name}")
             processed_ids.add(file_id)
 
-            try:
-                modified_time_str = file_data.get('modifiedTime')
-                # Ensure Z is handled correctly for UTC, or timezone info is present
-                if modified_time_str:
+            # Robustly handle missing or malformed modifiedTime
+            modified_time_str = file_data.get('modifiedTime')
+            last_edited_dt = None
+            if modified_time_str:
+                try:
                     if modified_time_str.endswith('Z'):
                         last_edited_dt = datetime.fromisoformat(modified_time_str[:-1] + '+00:00')
                     else:
                         last_edited_dt = datetime.fromisoformat(modified_time_str)
-                else:
-                    last_edited_dt = None
-            except ValueError as ve:
-                # Log this error: print(f"ValueError parsing date for file {file_id}: {ve}")
-                last_edited_dt = None # Or handle as appropriate
+                except Exception as ve:
+                    print(f"[ERROR] Could not parse modifiedTime for file {file_id}: {modified_time_str}. Error: {ve}")
+                    last_edited_dt = datetime.utcnow()  # Fallback to now
+            else:
+                print(f"[WARN] No modifiedTime for file {file_id}, using current UTC time.")
+                last_edited_dt = datetime.utcnow()
 
             existing_file = session.query(DriveFile).filter_by(id=file_id).first()
 
             if existing_file:
-                # Update if name or modifiedTime is different
                 if existing_file.name != file_name or existing_file.last_edited != last_edited_dt:
+                    print(f"[DEBUG] Updating file {file_id}")
                     existing_file.name = file_name
                     existing_file.last_edited = last_edited_dt
+                else:
+                    print(f"[DEBUG] No update needed for file {file_id}")
             else:
-                # Insert new file
+                print(f"[DEBUG] Inserting new file {file_id}")
                 new_file = DriveFile(
                     id=file_id,
                     name=file_name,
@@ -152,18 +158,21 @@ def upsert_drive_files_sqlalchemy(files_data: list[dict]):
                 )
                 session.add(new_file)
 
-        # Delete files from DB that are not in the incoming list
         ids_to_delete = current_db_file_ids - processed_ids
         if ids_to_delete:
+            print(f"[DEBUG] Deleting files from DB: {ids_to_delete}")
             session.query(DriveFile).filter(DriveFile.id.in_(ids_to_delete)).delete(synchronize_session=False)
-        
+        else:
+            print("[DEBUG] No files to delete from DB.")
         session.commit()
+        print("[DEBUG] upsert_drive_files_sqlalchemy committed successfully.")
     except Exception as e:
         session.rollback()
-        # Consider logging the error e, e.g., logger.error(f"Error in upsert_drive_files_sqlalchemy: {e}")
+        print(f"[ERROR] Exception in upsert_drive_files_sqlalchemy: {e}")
         raise
     finally:
         session.close()
+        print("[DEBUG] upsert_drive_files_sqlalchemy session closed.")
 
 
 def get_all_drive_files():

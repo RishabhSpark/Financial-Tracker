@@ -1,12 +1,31 @@
+import os
+from dotenv import load_dotenv
+import google.generativeai as genai
+
 from extractor.extract_distributed_details import extract_distributed_payment_details
 from extractor.extract_milestone_details import extract_milestone_payment_details
 from extractor.extract_periodic_details import extract_periodic_payment_details
 from app.core.logger import setup_logger
-from extractor.llm_client import get_llm, get_prompt
 
 logger = setup_logger()
 
-CLASSIFY_PROMPT = """
+load_dotenv()
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logger.error("GEMINI_API_KEY not set in environment variables.")
+    raise ValueError("GEMINI_API_KEY not set in environment variables.")
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+def classify_project_payment_category(po_text: str) -> str:
+    """
+    Uses Gemini to extract structured PO data from unstructured text.
+    """
+    logger.info("Classifying project payment category using Gemini model.")
+
+    prompt = f"""
 You are a classification assistant.
 
 Given the following purchase order text, classify it into one of these project payment categories:
@@ -23,21 +42,10 @@ Purchase Order text:
 Category:
 """
 
-def classify_project_payment_category(po_text: str) -> str:
-    logger.info("Classifying project payment category using LLM.")
-    llm = get_llm()
-    prompt = get_prompt(CLASSIFY_PROMPT)
-    chain = prompt | llm
-    try:
-        classification_resp = chain.invoke({"po_text": po_text})
-        if hasattr(classification_resp, "content"):
-            payment_type = classification_resp.content.strip().lower()
-        else:
-            payment_type = str(classification_resp).strip().lower()
-        logger.info(f"LLM classified payment_type as: {payment_type}")
-    except Exception as e:
-        logger.error(f"Failed to classify payment type: {e}")
-        raise
+    logger.debug("Sending classification prompt to Gemini model.")
+    classification_resp = model.generate_content(prompt)
+    payment_type = classification_resp.text.strip().lower()
+    logger.info(f"Gemini classified payment_type as: {payment_type}")
 
     if payment_type not in {"periodic", "distributed", "milestone"}:
         logger.error(f"Unexpected payment_type returned: {payment_type}")
