@@ -238,7 +238,16 @@ def forecast_table(data: Dict) -> pd.DataFrame:
     client_name = data['client_name']
     pay_type = classify_payment_type(data)
     project_owner = data.get('project_owner') or "-"
-    status = data.get('status') or "unknown"
+    
+    # Normalize status to one of the allowed values
+    raw_status = data.get('status', '').strip().lower()
+    if raw_status in ['confirmed']:
+        status = "Confirmed"
+    elif raw_status in ['unconfirmed']:
+        status = "Unconfirmed"
+    else:
+        status = "unspecified"
+    
     rows = [
         {
             "Client Name": client_name,

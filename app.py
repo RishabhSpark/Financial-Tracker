@@ -69,7 +69,7 @@ def add_unconfirmed_order():
             "po_id": generate_unconfirmed_po_id(),
             "client_name": form.get("client_name"),
             "amount": form.get("amount"),
-            "status": "unconfirmed",
+            "status": "Unconfirmed",
             "payment_terms": form.get("payment_terms"),
             "payment_type": form.get("payment_type"),
             "start_date": form.get("start_date"),
@@ -824,12 +824,21 @@ def extract_text_from_drive_folder():
 @app.route('/edit_po/<po_id>', methods=['GET', 'POST'])
 def edit_po(po_id):
     if request.method == 'POST':
+        # Normalize status to one of the allowed values
+        raw_status = request.form.get('status', "").strip().lower()
+        if raw_status == "confirmed":
+            status = "Confirmed"
+        elif raw_status == "unconfirmed":
+            status = "Unconfirmed"
+        else:
+            status = "unspecified"
+            
         # Collect updated fields from the form
         po_data = {
             'po_id': po_id,
             'client_name': request.form.get('client_name'),
             'amount': request.form.get('amount'),
-            'status': request.form.get('status'),
+            'status': status,
             'payment_terms': request.form.get('payment_terms'),
             'payment_type': request.form.get('payment_type'),
             'start_date': request.form.get('start_date'),
@@ -1006,11 +1015,21 @@ def generate_unconfirmed_po_id():
 @app.route("/submit-po", methods=["POST"])
 def submit_po():
     form = request.form
+    
+    # Normalize status to one of the allowed values
+    raw_status = form.get("status", "").strip().lower()
+    if raw_status == "confirmed":
+        status = "Confirmed"
+    elif raw_status == "unconfirmed":
+        status = "Unconfirmed"
+    else:
+        status = "unspecified"
+    
     po_dict = {
         "po_id": generate_unconfirmed_po_id(),
         "client_name": form.get("client_name"),
         "amount": form.get("amount"),
-        "status": form.get("status"),
+        "status": status,
         "payment_terms": form.get("payment_terms"),
         "payment_type": form.get("payment_type"),
         "start_date": form.get("start_date"),
