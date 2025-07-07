@@ -1,0 +1,16 @@
+version: '3.9'
+
+services:
+  forecast-app:
+    container_name: finance_forecast
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - financial-tracker/.env
+    volumes:
+      - ./financial-tracker:/app
+      - ./financial-tracker/client_secret.json:/app/client_secret.json
+    restart: unless-stopped
