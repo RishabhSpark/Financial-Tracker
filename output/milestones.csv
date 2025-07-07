@@ -2,3 +2,5 @@ po_id,milestone_name,milestone_description,milestone_due_date,milestone_percenta
 34523,initial,None,None,20.0
 34523,milestone_1,None,None,40.0
 34523,milestone_2,None,None,40.0
+unconfirmed-2,Milestone 1,,2025-08-01,40.0
+unconfirmed-2,Milestone 2,,2025-09-30,60.0

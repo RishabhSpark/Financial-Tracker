@@ -82,12 +82,12 @@ def add_unconfirmed_order():
         if form.get("payment_type") == "distributed":
             payment_schedule = []
             for key in form.keys():
-                if key.startswith("payment_month_"):
+                if key.startswith("payment_date_"):
                     index = key.split("_")[-1]
-                    date = form.get(f"payment_month_{index}")
+                    date = form.get(f"payment_date_{index}")
                     amount = form.get(f"payment_amount_{index}")
                     if date and amount:
-                        payment_schedule.append({"date": date, "amount": amount})
+                        payment_schedule.append({"payment_date": date, "payment_amount": amount})
             po_dict["payment_schedule"] = payment_schedule
         # Handle milestones
         if form.get("payment_type") == "milestone":
@@ -1014,12 +1014,12 @@ def submit_po():
     if form.get("payment_type") == "distributed":
         payment_schedule = []
         for key in form.keys():
-            if key.startswith("payment_month_"):
+            if key.startswith("payment_date_"):
                 index = key.split("_")[-1]
-                date = form.get(f"payment_month_{index}")
+                date = form.get(f"payment_date_{index}")
                 amount = form.get(f"payment_amount_{index}")
                 if date and amount:
-                    payment_schedule.append({"date": date, "amount": amount})
+                    payment_schedule.append({"payment_date": date, "payment_amount": amount})
         po_dict["payment_schedule"] = payment_schedule
 
     if form.get("payment_type") == "milestone":
