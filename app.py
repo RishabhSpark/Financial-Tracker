@@ -11,7 +11,7 @@ from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
 from functools import wraps
 from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
-from db.database import init_db, PurchaseOrder, SessionLocal
+from db.database import init_db, PurchaseOrder, SessionLocal, PaymentSchedule, Milestone
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string, jsonify, flash, g
 from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
@@ -999,6 +999,41 @@ def submit_po():
 
     insert_or_replace_po(po_dict)
     return redirect(url_for("forecast")) 
+@app.route("/delete-po/<po_id>", methods=["POST"])
+def delete_po(po_id):
+ 
+    session = SessionLocal()
+    try:
+        po = session.query(PurchaseOrder).filter_by(po_id=po_id).first()
+
+        if not po:
+            flash(f"❌ No purchase order found with ID '{po_id}'", "danger")
+            return redirect(url_for("dashboard"))
+
+        if po.payment_type == "milestone":
+            session.query(Milestone).filter_by(po_id=po_id).delete()
+
+        elif po.payment_type == "periodic":
+            session.query(PaymentSchedule).filter_by(po_id=po_id).delete()
+            
+
+        elif po.payment_type == "distributed":
+            session.query(PaymentSchedule).filter_by(po_id=po_id).delete()
+
+       
+        session.delete(po)
+        session.commit()
+
+        flash(f"✅ Purchase Order '{po_id}' deleted successfully.", "success")
+    except Exception as e:
+        session.rollback()
+        flash(f"❌ Error deleting PO: {str(e)}", "danger")
+    finally:
+        session.close()
+
+    return redirect(url_for("forecast"))
+
+
 
 if __name__ == '__main__':
     init_db()

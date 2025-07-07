@@ -1,0 +1,3 @@
+po_id,client_name,amount,status,payment_terms,payment_type,start_date,end_date,duration_months
+1234567890,Fiona Inc,80000.0,Confirmed,90,distributed,10-04-2025,31-12-2025,
+34523,Fiona Inc,80000.0,Confirmed,30,milestone,01-04-2025,31-12-2025,
