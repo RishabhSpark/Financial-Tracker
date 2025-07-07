@@ -384,7 +384,7 @@ def generate_pivot_table_html(df=None):
         month_cols = formatted_month_cols
         if month_cols:
             pivot['Total'] = pivot[month_cols].sum(axis=1)
-            pivot['Total'] = np.ceil(pivot['Total'])
+            pivot['Total'] = np.round(pivot['Total'])
         else:
             pivot['Total'] = 0.0
 
@@ -708,7 +708,6 @@ def extract_text_from_drive_folder():
                 print(
                     f"  PDF content for {file_item['name']} saved to temporary file: {temp_pdf_path}")
 
-                # --- RUN EXTRACTION PIPELINE (like main.py) ---
                 print(
                     f"  Running extraction pipeline for {file_item['name']}...")
                 po_json_data_for_db = run_pipeline(temp_pdf_path)
@@ -723,7 +722,6 @@ def extract_text_from_drive_folder():
                         f"  Warning: No data extracted from {file_item['name']}. Skipping database insertion for this file.")
                     extracted_texts_summary.append(
                         f"No data extracted from {file_item['name']}. DB insert skipped.")
-                # --- END PIPELINE ---
 
             finally:
                 # Clean up the temporary file
@@ -743,7 +741,6 @@ def extract_text_from_drive_folder():
 
     print(f"Finished processing folder ID: {folder_id}\n")
 
-    # --- Export and Forecast steps (like main.py) ---
     print("\n--- Exporting Data to JSON and CSV ---")
     from extractor.export import export_all_pos_json, export_all_csvs
     export_all_pos_json()
@@ -880,8 +877,13 @@ def drive_folder_upload():
                         fields="files(id, name, modifiedTime)",
                     ).execute()
                     pdf_files = response.get('files', [])
+                    # --- Store drive file details if Confirm Folder is clicked ---
+                    if request.form.get('confirm_folder'):
+                        all_files_in_folder = list_all_files_in_folder(service, folder_id)
+                        from db.crud import upsert_drive_files_sqlalchemy
+                        upsert_drive_files_sqlalchemy(all_files_in_folder)
                     if run_llm and pdf_files:
-                        # --- NEW LOGIC: Only process new files not in DB ---
+                        # --- Get all files in Drive (recursively) ---
                         all_files_in_folder = list_all_files_in_folder(service, folder_id)
                         pdfs = [f for f in all_files_in_folder if f.get('mimeType') == 'application/pdf']
                         extracted_texts_summary = []
@@ -924,6 +926,9 @@ def drive_folder_upload():
                             finally:
                                 if fh:
                                     fh.close()
+                        # --- Update drive_files table after processing ---
+                        from db.crud import upsert_drive_files_sqlalchemy
+                        upsert_drive_files_sqlalchemy(all_files_in_folder)
                         from extractor.export import export_all_pos_json, export_all_csvs
                         from forecast_processor import run_forecast_processing
                         export_all_pos_json()

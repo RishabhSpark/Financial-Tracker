@@ -35,11 +35,20 @@
                         </li>
                     {% endfor %}
                 </ul>
-                <form method="POST" action="{{ url_for('drive_folder_upload') }}">
+                <!-- Confirm Folder Button -->
+                <button id="confirm-folder-btn" class="btn btn-primary mb-3">Confirm Folder</button>
+                <!-- Run LLM Pipeline Button (hidden initially) -->
+                <form method="POST" action="{{ url_for('drive_folder_upload') }}" id="llm-form" style="display: none;">
                     <input type="hidden" name="folder_id" value="{{ folder_id }}">
                     <input type="hidden" name="run_llm" value="1">
-                    <button type="submit" class="btn btn-success">Run LLM Pipeline on All PDFs</button>
+                    <button type="submit" class="btn btn-success">Extract information from PDFs</button>
                 </form>
+                <script>
+                document.getElementById('confirm-folder-btn').addEventListener('click', function() {
+                    document.getElementById('llm-form').style.display = 'block';
+                    this.style.display = 'none';
+                });
+                </script>
             </div>
         {% elif folder_id %}
             <div class="alert alert-warning">No PDF files found in this folder.</div>
