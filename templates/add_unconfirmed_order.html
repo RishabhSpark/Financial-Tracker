@@ -122,12 +122,23 @@
   </head>
   <body>
     <div class="container py-5">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+       {% if messages %}
+    <div class="container mt-2">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}" role="alert">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
       <div class="card">
         <div class="card-header">
           <h2 class="mb-0">Add Unconfirmed Order</h2>
         </div>
         <div class="card-body p-4">
-          <form method="post">
+          <form action="/submit-po" method="post">
             <div class="form-section">
               <h3 class="section-title">Order Information</h3>
               <div class="row g-3">
@@ -140,6 +151,7 @@
                     class="form-control"
                     id="client_name"
                     name="client_name"
+                    value="{{ form_data.client_name or '' }}"
                     required
                   />
                 </div>
@@ -151,6 +163,7 @@
                     class="form-control"
                     id="amount"
                     name="amount"
+                    value="{{ form_data.amount or '' }}"
                     required
                   />
                 </div>
@@ -166,6 +179,7 @@
                       name="probability"
                       min="0"
                       max="100"
+                      value="{{ form_data.probability or '' }}"
                       required
                     />
                   </div>
@@ -179,6 +193,7 @@
                     class="form-control"
                     id="expected_date"
                     name="expected_date"
+                    value="{{ form_data.expected_date or '' }}"
                     required
                   />
                 </div>
@@ -186,85 +201,87 @@
             </div>
 
             <div class="form-section">
-              <h3 class="section-title">Payment Schedule</h3>
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label for="payment_type" class="form-label"
-                    >Payment Type</label
-                  >
-                  <select
-                    class="form-select"
-                    id="payment_type"
-                    name="payment_type"
-                    required
-                  >
-                    <option value="milestone">Milestone</option>
-                    <option value="distributed">Distributed</option>
-                    <option value="periodic">Periodic</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label for="payment_terms" class="form-label"
-                    >Payment Terms (days)</label
-                  >
-                  <input
-                    type="number"
-                    class="form-control"
-                    id="payment_terms"
-                    name="payment_terms"
-                    required
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label for="start_date" class="form-label"
-                    >Expected Start Date</label
-                  >
-                  <input
-                    type="date"
-                    class="form-control"
-                    id="start_date"
-                    name="start_date"
-                    required
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label for="duration_months" class="form-label"
-                    >Expected Duration (months)</label
-                  >
-                  <input
-                    type="number"
-                    class="form-control"
-                    id="duration_months"
-                    name="duration_months"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
+  <h3 class="section-title">Payment Schedule</h3>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label for="payment_type" class="form-label">Payment Type</label>
+      <select
+        class="form-select"
+        id="payment_type"
+        name="payment_type"
+        required
+      >
+        <option value="">-- Select --</option>
+        <option value="milestone">Milestone</option>
+        <option value="distributed">Distributed</option>
+        <option value="periodic">Periodic</option>
+      </select>
+    </div>
 
-            <div class="form-section">
-              <h3 class="section-title">Additional Information</h3>
-              <div class="row g-3">
-                <div class="col-12">
-                  <label for="notes" class="form-label">Notes</label>
-                  <textarea
-                    class="form-control"
-                    id="notes"
-                    name="notes"
-                    rows="3"
-                    placeholder="Add any additional information about the potential order..."
-                  ></textarea>
-                </div>
-              </div>
-            </div>
+    <!-- Common -->
+    <div class="col-md-6" id="terms_field">
+      <label for="payment_terms" class="form-label">Payment Terms (days)</label>
+      <input
+        type="number"
+        class="form-control"
+        id="payment_terms"
+        name="payment_terms"
+      />
+    </div>
+
+    <!-- Distributed + Periodic -->
+    <div class="col-md-6 conditional distributed periodic" style="display: none;">
+      <label for="start_date" class="form-label">Expected Start Date</label>
+      <input
+        type="date"
+        class="form-control"
+        id="start_date"
+        name="start_date"
+      />
+    </div>
+
+    <div class="col-md-6 conditional distributed periodic" style="display: none;">
+      <label for="duration_months" class="form-label">Expected Duration (months)</label>
+      <input
+        type="number"
+        class="form-control"
+        id="duration_months"
+        name="duration_months"
+      />
+    </div>
+
+<div class="col-12 conditional distributed" style="display: none;">
+  <label class="form-label">Monthly Payment Schedule</label>
+  <div id="distributed-schedule">
+    <!-- Monthly rows will be appended here -->
+  </div>
+  <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-distribution">
+    ➕ Add Month & Amount
+  </button>
+</div>
+
+    <!-- Milestone -->
+   <div class="col-12 conditional milestone" style="display: none;">
+  <label class="form-label">Milestone Schedule</label>
+  <div id="milestone-schedule">
+  </div>
+  <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-milestone">
+    ➕ Add Milestone
+  </button>
+</div>
+  </div>
+</div>
+
+
+      
 
             <div class="d-flex gap-2 mt-4">
               <button type="submit" class="btn btn-success">
                 <i class="bi bi-save"></i> Add to Forecast
               </button>
-              <!-- <a href="{{ url_for('forecast') }}" class="btn btn-secondary">
+              <a href="{{ url_for('forecast') }}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Cancel
-                        </a> -->
+                        </a>
             </div>
           </form>
         </div>
@@ -272,16 +289,99 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        // Set default dates
-        const today = new Date();
-        const nextMonth = new Date(today);
-        nextMonth.setMonth(today.getMonth() + 1);
+<script>
+  const paymentTypeSelect = document.getElementById('payment_type');
+   const addMilestoneBtn = document.getElementById('add-milestone');
+  const milestoneContainer = document.getElementById('milestone-schedule');
+  paymentTypeSelect.addEventListener('change', function () {
+    const selected = this.value;
 
-        document.getElementById("expected_date").valueAsDate = nextMonth;
-        document.getElementById("start_date").valueAsDate = nextMonth;
+    document.querySelectorAll('.conditional').forEach(el => {
+      el.style.display = 'none';
+    });
+
+    if (selected) {
+      document.querySelectorAll(`.conditional.${selected}`).forEach(el => {
+        el.style.display = 'block';
       });
-    </script>
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    paymentTypeSelect.dispatchEvent(new Event('change'));
+  });
+
+  const addBtn = document.getElementById('add-distribution');
+  const scheduleContainer = document.getElementById('distributed-schedule');
+
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      const index = scheduleContainer.children.length + 1;
+      const row = document.createElement('div');
+      row.classList.add('row', 'g-2', 'align-items-end', 'mb-2');
+
+      row.innerHTML = `
+        <div class="col-md-5">
+          <label class="form-label">Month</label>
+          <input type="month" class="form-control" name="payment_month_${index}" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Amount (USD)</label>
+          <input type="number" class="form-control" name="payment_amount_${index}" step="0.01" required>
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-outline-danger remove-distribution">✖</button>
+        </div>
+      `;
+
+      scheduleContainer.appendChild(row);
+    });
+
+    
+    scheduleContainer.addEventListener('click', function (e) {
+      if (e.target.classList.contains('remove-distribution')) {
+        e.target.closest('.row').remove();
+      }
+    });
+  }
+  if (addMilestoneBtn) {
+    addMilestoneBtn.addEventListener('click', () => {
+      const index = milestoneContainer.children.length + 1;
+      const row = document.createElement('div');
+      row.classList.add('row', 'g-2', 'align-items-end', 'mb-2');
+
+      row.innerHTML = `
+        <div class="col-md-3">
+          <label class="form-label">Milestone Name</label>
+          <input type="text" class="form-control" name="milestone_name_${index}" value="{{ form_data['milestone_name'][0] if form_data.get('milestone_start_1') else '' }}" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Milestone %</label>
+          <input type="number" class="form-control" name="milestone_percent_${index}" step="0.1" min="0" max="100"  required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Due Date (Expected)</label>
+          <input type="date" class="form-control" name="milestone_due_${index}"  required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Description</label>
+          <input type="text" class="form-control" name="milestone_description_${index}" placeholder="e.g. Delivery Phase 1" >
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-outline-danger remove-milestone">✖</button>
+        </div>
+      `;
+
+      milestoneContainer.appendChild(row);
+    });
+
+    milestoneContainer.addEventListener('click', function (e) {
+      if (e.target.classList.contains('remove-milestone')) {
+        e.target.closest('.row').remove();
+      }
+    });
+  }
+</script>
+
   </body>
 </html>

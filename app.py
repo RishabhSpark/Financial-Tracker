@@ -11,7 +11,7 @@ from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
 from functools import wraps
 from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
-from db.database import init_db
+from db.database import init_db, PurchaseOrder, SessionLocal
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string, jsonify, flash, g
 from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
@@ -71,7 +71,7 @@ def add_unconfirmed_order():
             print(f"{key}: {value}")
         return "<h3>Order received. Check console for printed data.</h3><a href='/test-form'>Back</a>"
 
-    return render_template("add_unconfirmed_order.html")
+    return render_template("add_unconfirmed_order.html", form_data={})
 
 
 @app.route('/')
@@ -935,6 +935,65 @@ def drive_folder_upload():
                 folder_id = None
     return render_template('drive_folder_upload.html', error=error, pdf_files=pdf_files, folder_id=folder_id, folder_url=folder_url, llm_summary=llm_summary)
 
+def generate_unconfirmed_po_id():
+    session = SessionLocal()
+    count = session.query(PurchaseOrder).filter(PurchaseOrder.po_id.like("unconfirmed-%")).count()
+    session.close()
+    return f"unconfirmed-{count + 1}"
+
+@app.route("/submit-po", methods=["POST"])
+def submit_po():
+    form = request.form
+    po_dict = {
+        "po_id": generate_unconfirmed_po_id(),
+        "client_name": form.get("client_name"),
+        "amount": form.get("amount"),
+        "status": form.get("status"),
+        "payment_terms": form.get("payment_terms"),
+        "payment_type": form.get("payment_type"),
+        "start_date": form.get("start_date"),
+        "end_date": form.get("end_date"),
+        "duration_months": form.get("duration_months"),
+        "payment_frequency": form.get("payment_frequency"),  # optional
+    }
+
+    if form.get("payment_type") == "distributed":
+        payment_schedule = []
+        for key in form.keys():
+            if key.startswith("payment_month_"):
+                index = key.split("_")[-1]
+                date = form.get(f"payment_month_{index}")
+                amount = form.get(f"payment_amount_{index}")
+                if date and amount:
+                    payment_schedule.append({"date": date, "amount": amount})
+        po_dict["payment_schedule"] = payment_schedule
+
+    if form.get("payment_type") == "milestone":
+        milestones = []
+        total_percentage = 0.0
+        for key in form:
+            if key.startswith("milestone_name_"):
+                index = key.split("_")[-1]
+                try:
+                    percent = float(form.get(f"milestone_percent_{index}", 0))
+                except ValueError:
+                    percent = 0
+                total_percentage += percent
+                milestones.append({
+                    "milestone_name": f"Milestone {index}",
+                    "milestone_description": form.get(f"milestone_description_{index}"),
+                    "milestone_due_date": form.get(f"milestone_due_{index}"),
+                    "milestone_percentage": form.get(f"milestone_percent_{index}"),
+                    
+                })
+        if round(total_percentage, 2) != 100.00:
+            flash("❌ Milestone percentages must add up to 100%.", "danger")
+            return render_template("add_unconfirmed_order.html", form_data=request.form)
+        po_dict["milestones"] = milestones
+        
+
+    insert_or_replace_po(po_dict)
+    return redirect(url_for("forecast")) 
 
 if __name__ == '__main__':
     init_db()
