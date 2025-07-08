@@ -1,14 +1,7 @@
 Client Name,Month,Inflow (USD),PO No,Project Owner,Status
-Fiona Inc,2025-05,16000.00,34523,-,Confirmed
-Fiona Inc,2025-09,32000.00,34523,-,Confirmed
-Fiona Inc,2026-01,32000.00,34523,-,Confirmed
-Fiona Inc,2025-07,10000.00,1234567890,-,Confirmed
-Fiona Inc,2025-08,10000.00,1234567890,-,Confirmed
-Fiona Inc,2025-09,10000.00,1234567890,-,Confirmed
-Fiona Inc,2025-10,15000.00,1234567890,-,Confirmed
-Fiona Inc,2025-11,15000.00,1234567890,-,Confirmed
-Fiona Inc,2025-12,10000.00,1234567890,-,Confirmed
-Fiona Inc,2026-01,10000.00,1234567890,-,Confirmed
+Fiona Inc,2025-05,18000.00,34523,ProjectOwner1,Confirmed
+Fiona Inc,2025-09,36000.00,34523,ProjectOwner1,Confirmed
+Fiona Inc,2026-01,36000.00,34523,ProjectOwner1,Confirmed
 Fiona Inc,2025-08,5333.33,1234567345,-,Confirmed
 Fiona Inc,2025-09,5333.33,1234567345,-,Confirmed
 Fiona Inc,2025-10,5333.33,1234567345,-,Confirmed
@@ -24,3 +17,8 @@ Fiona Inc,2026-07,5333.33,1234567345,-,Confirmed
 Fiona Inc,2026-08,5333.33,1234567345,-,Confirmed
 Fiona Inc,2026-09,5333.33,1234567345,-,Confirmed
 Fiona Inc,2026-10,5333.33,1234567345,-,Confirmed
+ClientPeriodic,2025-11,10000.00,unconfirmed-1,-,Unconfirmed
+ClientPeriodic,2025-12,10000.00,unconfirmed-1,-,Unconfirmed
+ClientMilestone,2026-01,50000.00,unconfirmed-2,-,Confirmed
+ClientMilestone,2026-04,25000.00,unconfirmed-2,-,Confirmed
+ClientMilestone,2026-07,25000.00,unconfirmed-2,-,Confirmed

@@ -10,7 +10,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
 from functools import wraps
-from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
+from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule, delete_po_by_id
 from db.database import init_db, PurchaseOrder, SessionLocal, PaymentSchedule, Milestone
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string, jsonify, flash, g
 from extractor.pdf_processing.extract_blocks import extract_blocks
@@ -844,9 +844,12 @@ def edit_po(po_id):
         else:
             status = "unspecified"
             
+        # Get the potentially new PO ID from the form
+        new_po_id = request.form.get('po_id', po_id).strip()
+        
         # Collect updated fields from the form
         po_data = {
-            'po_id': po_id,
+            'po_id': new_po_id,
             'client_name': request.form.get('client_name'),
             'amount': request.form.get('amount'),
             'status': status,
@@ -885,8 +888,25 @@ def edit_po(po_id):
                     'payment_description': desc
                 })
             po_data['payment_schedule'] = schedule
-        # Save changes
+        
+        # Handle PO ID change
+        if new_po_id != po_id:
+            # If PO ID changed, we need to delete the old record and create a new one
+            delete_po_by_id(po_id)  # Delete old record
+        
+        # Save changes (will create new record if PO ID changed, or update existing)
         insert_or_replace_po(po_data)
+        
+        # Regenerate forecast files after editing PO
+        from extractor.export import export_all_pos_json, export_all_csvs
+        from forecast_processor import run_forecast_processing
+        try:
+            export_all_pos_json()
+            export_all_csvs()
+            run_forecast_processing(input_json_path="./output/purchase_orders.json")
+        except Exception as e:
+            print(f"Warning: Could not regenerate forecast files after PO edit: {e}")
+        
         return redirect(url_for('forecast'))
 
     # GET: Show form with current PO data

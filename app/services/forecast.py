@@ -9,6 +9,43 @@ def classify_payment_type(data: Dict) -> str:
     return data.get("payment_type", "unknown")
 
 
+def parse_date_flexible(date_str):
+    """
+    Parse date string with multiple format support and handle incomplete entries.
+    Returns pandas datetime or None if parsing fails.
+    """
+    if not date_str or date_str in ["None", None, "", "nan", "NaN"]:
+        return None
+    
+    # Clean the date string
+    date_str = str(date_str).strip()
+    if not date_str:
+        return None
+    
+    # Try multiple date formats
+    date_formats = [
+        "%d-%m-%Y",    # DD-MM-YYYY
+        "%Y-%m-%d",    # YYYY-MM-DD
+        "%m/%d/%Y",    # MM/DD/YYYY
+        "%d/%m/%Y",    # DD/MM/YYYY
+        "%Y/%m/%d",    # YYYY/MM/DD
+        "%d.%m.%Y",    # DD.MM.YYYY
+        "%Y.%m.%d",    # YYYY.MM.DD
+    ]
+    
+    for fmt in date_formats:
+        try:
+            return pd.to_datetime(date_str, format=fmt)
+        except (ValueError, TypeError):
+            continue
+    
+    # Try pandas' flexible parser as last resort
+    try:
+        return pd.to_datetime(date_str, errors='coerce')
+    except:
+        return None
+
+
 def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
     """
     Calculates monthly inflow based on payment data, handling distributed,
@@ -34,10 +71,8 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
                           total inflow for that month.
     """
 
-    start = pd.to_datetime(data.get("start_date"), format="%d-%m-%Y",
-                           errors='coerce') if data.get("start_date") else None
-    end = pd.to_datetime(data.get("end_date"), format="%d-%m-%Y",
-                         errors='coerce') if data.get("end_date") else None
+    start = parse_date_flexible(data.get("start_date"))
+    end = parse_date_flexible(data.get("end_date"))
 
     total = float(data.get("amount", 0.0))
     pay_type = data.get("payment_type", "unknown").lower()
@@ -61,12 +96,9 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
 
             pay_date = None
             if "payment_date" in division and division["payment_date"] not in ["None", None, ""]:
-                try:
-                    pay_date = pd.to_datetime(
-                        division["payment_date"], format="%d-%m-%Y")
-                except ValueError:
-                    print(
-                        f"Warning: Could not parse date '{division['payment_date']}' in distributed payment schedule. Skipping this entry.")
+                pay_date = parse_date_flexible(division["payment_date"])
+                if pay_date is None:
+                    print(f"Warning: Could not parse date '{division['payment_date']}' in distributed payment schedule. Skipping this entry.")
                     continue
 
             if pay_date:
@@ -103,15 +135,10 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
 
             pay_date = None
             if "milestone_due_date" in milestone and milestone["milestone_due_date"] not in ["None", None, ""]:
-                try:
-                    pay_date = pd.to_datetime(
-                        milestone["milestone_due_date"], format="%d-%m-%Y")
-                except ValueError:
-                    print(
-                        f"Warning: Could not parse date '{milestone['milestone_due_date']}' for milestone '{milestone.get('milestone_name', 'Unnamed')}'. Using inferred date.")
-
-                    pay_date = inferred_dates[i] if i < len(
-                        inferred_dates) else None
+                pay_date = parse_date_flexible(milestone["milestone_due_date"])
+                if pay_date is None:
+                    print(f"Warning: Could not parse date '{milestone['milestone_due_date']}' for milestone '{milestone.get('milestone_name', 'Unnamed')}'. Using inferred date.")
+                    pay_date = inferred_dates[i] if i < len(inferred_dates) else None
             else:
 
                 pay_date = inferred_dates[i] if i < len(
@@ -133,11 +160,13 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
                 if ":$" in entry:
                     try:
                         date_str, amount_str = entry.strip().split(":$")
-                        date = pd.to_datetime(date_str, format="%d-%m-%Y")
+                        date = parse_date_flexible(date_str)
+                        if date is None:
+                            print(f"Warning: Could not parse date '{date_str}' in fixed payment entry '{entry}'. Skipping.")
+                            continue
                         date += pd.Timedelta(days=delay_days)
                         month = date.strftime("%Y-%m")
-                        inflow[month] = inflow.get(
-                            month, 0.0) + float(amount_str)
+                        inflow[month] = inflow.get(month, 0.0) + float(amount_str)
                     except ValueError:
                         print(
                             f"Warning: Could not parse fixed payment entry '{entry}'. Skipping.")
@@ -159,12 +188,9 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
                         continue
                     pay_date = None
                     if "payment_date" in item and item["payment_date"] not in ["None", None, ""]:
-                        try:
-                            pay_date = pd.to_datetime(
-                                item["payment_date"], format="%d-%m-%Y")
-                        except ValueError:
-                            print(
-                                f"Warning: Could not parse date '{item['payment_date']}' in fixed payment schedule. Skipping this entry.")
+                        pay_date = parse_date_flexible(item["payment_date"])
+                        if pay_date is None:
+                            print(f"Warning: Could not parse date '{item['payment_date']}' in fixed payment schedule. Skipping this entry.")
                             continue
                     if pay_date:
                         effective_date = pay_date + \
@@ -233,14 +259,19 @@ def get_monthly_inflow(data: Dict[str, Any]) -> Dict[str, float]:
 
 
 def forecast_table(data: Dict) -> pd.DataFrame:
-    inflow = get_monthly_inflow(data)
-    po_number = data['po_id']
-    client_name = data['client_name']
-    pay_type = classify_payment_type(data)
-    project_owner = data.get('project_owner') or "-"
+    # Validate and clean the data first
+    cleaned_data = validate_and_clean_data(data)
+    if cleaned_data is None:
+        return pd.DataFrame()  # Return empty DataFrame for invalid data
+    
+    inflow = get_monthly_inflow(cleaned_data)
+    po_number = cleaned_data['po_id']
+    client_name = cleaned_data['client_name']
+    pay_type = classify_payment_type(cleaned_data)
+    project_owner = cleaned_data.get('project_owner') or "-"
     
     # Normalize status to one of the allowed values
-    raw_status = data.get('status', '').strip().lower()
+    raw_status = cleaned_data.get('status', '').strip().lower()
     if raw_status in ['confirmed']:
         status = "Confirmed"
     elif raw_status in ['unconfirmed']:
@@ -261,3 +292,97 @@ def forecast_table(data: Dict) -> pd.DataFrame:
     ]
 
     return pd.DataFrame(rows)
+
+def validate_and_clean_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate and clean PO data, removing incomplete or invalid entries.
+    Returns cleaned data or None if data is too incomplete to process.
+    """
+    if not isinstance(data, dict):
+        return None
+    
+    # Check for minimum required fields
+    required_fields = ['po_id', 'client_name', 'amount', 'payment_type']
+    for field in required_fields:
+        if not data.get(field) or str(data.get(field)).strip() in ['', 'None', 'nan', 'NaN']:
+            print(f"Warning: Missing or empty required field '{field}' in PO data. Skipping this entry.")
+            return None
+    
+    # Clean and validate amount
+    try:
+        amount = float(data.get('amount', 0))
+        if amount <= 0:
+            print(f"Warning: Invalid amount '{data.get('amount')}' for PO {data.get('po_id')}. Skipping this entry.")
+            return None
+        data['amount'] = amount
+    except (ValueError, TypeError):
+        print(f"Warning: Could not parse amount '{data.get('amount')}' for PO {data.get('po_id')}. Skipping this entry.")
+        return None
+    
+    # Clean string fields
+    string_fields = ['po_id', 'client_name', 'payment_type', 'status', 'project_owner']
+    for field in string_fields:
+        if field in data and data[field] is not None:
+            data[field] = str(data[field]).strip()
+    
+    # Validate payment_type
+    valid_payment_types = ['distributed', 'milestone', 'fixed', 'even', 'periodic']
+    payment_type = data.get('payment_type', '').lower().strip()
+    if payment_type not in valid_payment_types:
+        print(f"Warning: Invalid payment_type '{data.get('payment_type')}' for PO {data.get('po_id')}. Skipping this entry.")
+        return None
+    data['payment_type'] = payment_type
+    
+    # Clean payment terms
+    try:
+        payment_terms = int(data.get('payment_terms', 0))
+        data['payment_terms'] = max(0, payment_terms)  # Ensure non-negative
+    except (ValueError, TypeError):
+        data['payment_terms'] = 0
+    
+    # Clean milestones if present
+    if payment_type == 'milestone' and 'milestones' in data:
+        clean_milestones = []
+        for milestone in data.get('milestones', []):
+            if isinstance(milestone, dict) and 'milestone_percentage' in milestone:
+                try:
+                    percentage = float(str(milestone['milestone_percentage']).strip('%'))
+                    if percentage > 0:  # Only include milestones with positive percentage
+                        milestone['milestone_percentage'] = percentage
+                        clean_milestones.append(milestone)
+                except (ValueError, TypeError):
+                    continue
+        data['milestones'] = clean_milestones
+        
+        if not clean_milestones:
+            print(f"Warning: No valid milestones found for milestone payment type in PO {data.get('po_id')}. Skipping this entry.")
+            return None
+    
+    # Clean payment schedule if present
+    if payment_type == 'distributed' and 'payment_schedule' in data:
+        clean_schedule = []
+        for payment in data.get('payment_schedule', []):
+            if isinstance(payment, dict):
+                # Check if payment has either amount or percentage
+                has_amount = 'payment_amount' in payment and payment['payment_amount'] not in [None, '', 'None']
+                has_percent = 'payment_percent' in payment and payment['payment_percent'] not in [None, '', 'None']
+                
+                if has_amount or has_percent:
+                    try:
+                        if has_amount:
+                            amount = float(payment['payment_amount'])
+                            if amount > 0:
+                                clean_schedule.append(payment)
+                        elif has_percent:
+                            percent = float(str(payment['payment_percent']).strip('%'))
+                            if percent > 0:
+                                clean_schedule.append(payment)
+                    except (ValueError, TypeError):
+                        continue
+        data['payment_schedule'] = clean_schedule
+        
+        if not clean_schedule:
+            print(f"Warning: No valid payment schedule found for distributed payment type in PO {data.get('po_id')}. Skipping this entry.")
+            return None
+    
+    return data

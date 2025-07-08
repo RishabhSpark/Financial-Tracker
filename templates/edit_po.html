@@ -32,7 +32,11 @@
             </div>
             <div class="mb-3">
                 <label for="status" class="form-label">Status:</label>
-                <input type="text" class="form-control" id="status" name="status" value="{{ po['status'] }}" required>
+                <select class="form-select" id="status" name="status" required>
+                    <option value="Unconfirmed" {% if po['status'] == 'Unconfirmed' %}selected{% endif %}>Unconfirmed</option>
+                    <option value="Confirmed" {% if po['status'] == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="unspecified" {% if po['status'] == 'unspecified' %}selected{% endif %}>Unspecified</option>
+                </select>
             </div>
             <div class="mb-3">
                 <label for="payment_terms" class="form-label">Payment Terms:</label>
