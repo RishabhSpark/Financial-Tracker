@@ -1,7 +1,0 @@
-po_id,milestone_name,milestone_description,milestone_due_date,milestone_percentage
-34523,initial,None,None,20.0
-34523,milestone_1,None,None,40.0
-34523,milestone_2,None,None,40.0
-unconfirmed-2,Milestone 1,,2026-01-01,50.0
-unconfirmed-2,Milestone 2,,2026-03-31,25.0
-unconfirmed-2,Milestone 3,,2026-06-30,25.0
