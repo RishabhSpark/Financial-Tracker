@@ -2,8 +2,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.db
-*.sqlite3
 *.log
 *.env
 .env
@@ -12,5 +10,13 @@ __pycache__/
 .vscode
 __pycache__/
 input/POs/
-logs/
+logs/*.log
+.env.example
+
+# Data files (mounted as volumes)
+*.db
+*.sqlite3
+*.csv
+*.json
+*.xlsx
 

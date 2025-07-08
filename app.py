@@ -10,7 +10,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
 from extractor.run_extraction import run_pipeline
 from functools import wraps
-from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule, delete_po_by_id
+from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
 from db.database import init_db, PurchaseOrder, SessionLocal, PaymentSchedule, Milestone
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string, jsonify, flash, g
 from extractor.pdf_processing.extract_blocks import extract_blocks
@@ -20,7 +20,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
 load_dotenv()
-
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'supersecret123')
@@ -890,9 +889,9 @@ def edit_po(po_id):
             po_data['payment_schedule'] = schedule
         
         # Handle PO ID change
-        if new_po_id != po_id:
-            # If PO ID changed, we need to delete the old record and create a new one
-            delete_po_by_id(po_id)  # Delete old record
+        # if new_po_id != po_id:
+        #     # If PO ID changed, we need to delete the old record and create a new one
+        #     delete_po_by_id(po_id)  # Delete old record
         
         # Save changes (will create new record if PO ID changed, or update existing)
         insert_or_replace_po(po_data)

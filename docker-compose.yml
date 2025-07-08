@@ -1,16 +1,31 @@
-version: '3.9'
-
 services:
   forecast-app:
-    container_name: finance_forecast
+    container_name: financial_tracker
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
     env_file:
-      - financial-tracker/.env
+      - .env
     volumes:
-      - ./financial-tracker:/app
+      # Main application directory
+      - ./financial-tracker
+      
+      # Configuration files
       - ./financial-tracker/client_secret.json:/app/client_secret.json
+      
+      # Database files
+      - ./po_database.db:/app/po_database.db
+      
+      # Output data files
+      - ./output:/app/output
+      
+      # CSV and Excel files in root
+      - ./forecast_output.csv:/app/forecast_output.csv
+      - ./forecast_pivot.xlsx:/app/forecast_pivot.xlsx
+      
+      # Logs directory (optional - for persistence)
+      - ./logs:/app/logs
+      
     restart: unless-stopped
