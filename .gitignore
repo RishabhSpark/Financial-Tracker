@@ -228,3 +228,10 @@ venv
 .env
 client_secret.json
 .history/
+
+# data files
+*.db
+*.sqlite3
+*.csv
+*.json
+*.xlsx
