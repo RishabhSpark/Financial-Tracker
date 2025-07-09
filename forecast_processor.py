@@ -173,7 +173,7 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                                 try:
                                     # Ensure value is float before formatting, handles cases where it might be string
                                     float_val = float(cell.value)
-                                    cell.number_format = '0.00'
+                                    cell.number_format = '0'  # Set to whole number format
                                 except ValueError:
                                     pass # Keep original if not a number
 
