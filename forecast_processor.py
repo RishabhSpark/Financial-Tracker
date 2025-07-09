@@ -132,6 +132,11 @@ def run_forecast_processing(input_json_path: str = "./output/purchase_orders.jso
                     pivot.insert(0, 'S.No', range(1, 1 + len(pivot)))
                     pivot = pivot[new_order]
 
+                # --- Round all float columns to whole numbers for Excel output ---
+                for col in pivot.columns:
+                    if pd.api.types.is_float_dtype(pivot[col]):
+                        pivot[col] = pivot[col].round(0).astype(int)
+
                 with pd.ExcelWriter(pivot_excel_path, engine='openpyxl') as writer:
                     pivot.to_excel(writer, index=False, sheet_name="Forecast")
                     

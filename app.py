@@ -502,7 +502,7 @@ def generate_pivot_table_html(df=None):
 
         def format_usd(val):
             try:
-                return "$" + format(float(val), ",.2f")
+                return "$" + format(int(round(float(val))), ",")
             except:
                 return val
         html = pivot.to_html(
