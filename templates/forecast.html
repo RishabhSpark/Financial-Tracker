@@ -374,6 +374,15 @@
             setTimeout(updateFrozenColumnPositions, 150);
           }
           
+          // --- Ensure all currency values are shown as whole numbers (no decimals) ---
+          Array.from(table.querySelectorAll('td')).forEach(td => {
+            let match = td.textContent.match(/^\$?([0-9\,]+)\.(\d+)/);
+            if (match) {
+              let num = Math.round(parseFloat(td.textContent.replace(/[^\d.]/g, '')));
+              td.textContent = (td.textContent.trim().startsWith('$') ? '$' : '') + num.toLocaleString();
+            }
+          });
+          
           // Handle window resize
           window.addEventListener('resize', updateFrozenColumnPositions);
         }
