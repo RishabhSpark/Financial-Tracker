@@ -18,8 +18,12 @@ from extractor.pdf_processing.extract_tables import extract_tables
 from extractor.pdf_processing.format_po import format_po_for_llm
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
+from app.core.logger import setup_logger
+
+logger = setup_logger()
 
 load_dotenv()
+logger.info("Loaded environment variables from .env file.")
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'supersecret123')
@@ -37,7 +41,7 @@ for i in range(1, 10):
     password = os.getenv(f'USER_{i}_PASSWORD')
     if username and password:
         USERS[username] = password
-
+        logger.debug(f"Loaded user: {username}")
 
 def build_credentials(creds_dict):
     return Credentials(**creds_dict)
@@ -47,8 +51,10 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'logged_in' not in session or not session['logged_in']:
+            logger.info("Unauthorized access attempt to %s", request.path)
             flash('Please log in to access this page.', 'danger')
             return redirect(url_for('login'))
+        logger.debug("User %s accessed %s", session.get('username', 'Unknown'), request.path)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -58,12 +64,13 @@ def load_logged_in_user():
     g.user = None
     if 'username' in session:
         g.user = session['username']
-
+    logger.info("User %s is accessing %s", g.user, request.path)
 
 @app.route('/add_client', methods=['GET', 'POST'])
 def add_unconfirmed_order():
     if request.method == 'POST':
         form = request.form
+        logger.info("Received POST request to /add_client from user '%s' with data: %s", g.user, dict(form))
         
         # Normalize status to one of the allowed values
         raw_status = form.get("status", "unconfirmed").strip().lower()
@@ -73,6 +80,7 @@ def add_unconfirmed_order():
             status = "Unconfirmed"
         else:
             status = "unspecified"
+            logger.warning("Unknown status value received: '%s' (user: %s)", raw_status, g.user)
         
         po_dict = {
             "po_id": generate_unconfirmed_po_id(),
@@ -87,6 +95,7 @@ def add_unconfirmed_order():
             "project_owner": form.get("project_owner"),
             "payment_frequency": form.get("payment_frequency"),
         }
+        logger.debug("Constructed PO dict: %s", po_dict)
         
         # Handle distributed payments
         if form.get("payment_type") == "distributed":
@@ -99,6 +108,7 @@ def add_unconfirmed_order():
                     if date and amount:
                         payment_schedule.append({"payment_date": date, "payment_amount": amount})
             po_dict["payment_schedule"] = payment_schedule
+            logger.info("Processed distributed payment schedule for PO %s: %s", po_dict["po_id"], payment_schedule)
         # Handle milestones
         if form.get("payment_type") == "milestone":
             milestones = []
@@ -110,6 +120,7 @@ def add_unconfirmed_order():
                         percent = float(form.get(f"milestone_percent_{index}", 0))
                     except ValueError:
                         percent = 0
+                        logger.warning("Invalid milestone percent for index %s (user: %s)", index, g.user)
                     total_percentage += percent
                     milestones.append({
                         "milestone_name": f"Milestone {index}",
@@ -118,17 +129,29 @@ def add_unconfirmed_order():
                         "milestone_percentage": form.get(f"milestone_percent_{index}"),
                     })
             if round(total_percentage, 2) != 100.00:
-                flash("❌ Milestone percentages must add up to 100%.", "danger")
+                logger.error("Milestone percentages do not add up to 100%% (got %.2f) for PO %s by user %s", total_percentage, po_dict["po_id"], g.user)
+                flash("Milestone percentages must add up to 100%.", "danger")
                 return render_template("add_unconfirmed_order.html", form_data=request.form)
             po_dict["milestones"] = milestones
+            logger.info("Processed milestones for PO %s: %s", po_dict["po_id"], milestones)
         # Insert into DB
-        insert_or_replace_po(po_dict)
+        try:
+            insert_or_replace_po(po_dict)
+            logger.info("Inserted/updated PO in database: %s (user: %s)", po_dict["po_id"], g.user)
+        except Exception as e:
+            logger.error("Error inserting PO into database for user %s: %s", g.user, e, exc_info=True)
+            flash("Error saving purchase order.", "danger")
+            return render_template("add_unconfirmed_order.html", form_data=request.form)
         # Update output files
-        from extractor.export import export_all_pos_json, export_all_csvs
-        from forecast_processor import run_forecast_processing
-        export_all_pos_json()
-        export_all_csvs()
-        run_forecast_processing(input_json_path="./output/purchase_orders.json")
+        try:
+            from extractor.export import export_all_pos_json, export_all_csvs
+            from forecast_processor import run_forecast_processing
+            export_all_pos_json()
+            export_all_csvs()
+            run_forecast_processing(input_json_path="./output/purchase_orders.json")
+            logger.info("Exported all POs and ran forecast processing after PO insert (PO: %s, user: %s)", po_dict["po_id"], g.user)
+        except Exception as e:
+            logger.error("Error exporting or running forecast processing for PO %s by user %s: %s", po_dict["po_id"], g.user, e, exc_info=True)
         return redirect(url_for("forecast"))
     return render_template("add_unconfirmed_order.html", form_data={})
 
