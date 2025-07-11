@@ -359,6 +359,15 @@
             table.rows[0].appendChild(th);
 
             for (let i = 1; i < table.rows.length; i++) {
+              // Skip TOTAL row if any cell contains 'total' (case-insensitive)
+              let isTotalRow = false;
+              for (let c = 0; c < table.rows[i].cells.length; c++) {
+                if (table.rows[i].cells[c].textContent.trim().toLowerCase() === "total") {
+                  isTotalRow = true;
+                  break;
+                }
+              }
+              if (isTotalRow) continue;
               const poId = table.rows[i].cells[poNoIdx].textContent.trim();
               const td = document.createElement("td");
               const btn = document.createElement("a");
@@ -367,9 +376,7 @@
               btn.className = "btn btn-sm btn-outline-primary";
               td.appendChild(btn);
               table.rows[i].appendChild(td);
-              
             }
-            
             // Update positions again after adding Edit column
             setTimeout(updateFrozenColumnPositions, 150);
           }

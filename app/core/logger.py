@@ -64,8 +64,8 @@ def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Lo
     if file_cfg.get('rotating', False):
         fh = logging.handlers.RotatingFileHandler(
             filename=file_path,
-            maxBytes=file_cfg.get('maxBytes', 1048576),
-            backupCount=file_cfg.get('backupCount', 5),
+            maxBytes=file_cfg.get('maxBytes', 5*1024*1024),
+            backupCount=file_cfg.get('backupCount', 2),
             encoding='utf-8'
         )
     else:
