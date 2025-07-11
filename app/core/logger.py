@@ -2,6 +2,7 @@ import logging
 import logging.handlers
 import os
 import yaml
+import time
 
 def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Logger:
     # Load YAML config
@@ -36,6 +37,7 @@ def setup_logger(yaml_path: str = "app/config/logger_config.yaml") -> logging.Lo
         logger.handlers.clear()
 
     formatter = logging.Formatter(pattern, datefmt)
+    formatter.converter = time.localtime
 
     os.makedirs(log_dir, exist_ok=True)
 
