@@ -26,15 +26,14 @@
         z-index: 10;
         font-weight: bold;
       }
-      
-      /* Frozen columns styling */
+    
       .table-responsive {
         overflow-x: auto;
         position: relative;
         max-width: 100%;
       }
       
-      /* Ensure table has proper positioning context */
+     
       .table {
         position: relative;
         margin-bottom: 0;
@@ -52,7 +51,7 @@
       .table th:nth-child(2),
       .table td:nth-child(2) {
         position: sticky;
-        left: 60px; /* S.No width */
+        left: 60px; 
         background-color: #e3f2fd !important;
         z-index: 14;
         border-right: 2px solid #dee2e6;
@@ -61,7 +60,7 @@
       .table th:nth-child(3),
       .table td:nth-child(3) {
         position: sticky;
-        left: 200px; /* S.No + Client Name width */
+        left: 200px; 
         background-color: #e3f2fd !important;
         z-index: 13;
         border-right: 2px solid #dee2e6;
@@ -70,7 +69,7 @@
       .table th:nth-child(4),
       .table td:nth-child(4) {
         position: sticky;
-        left: 360px; /* S.No + Client Name + PO No width */
+        left: 360px; 
         background-color: #e3f2fd !important;
         z-index: 12;
         border-right: 2px solid #dee2e6;
@@ -79,7 +78,7 @@
       .table th:nth-child(5),
       .table td:nth-child(5) {
         position: sticky;
-        left: 520px; /* S.No + Client Name + PO No + Project Owner width */
+        left: 520px; 
         background-color: #e3f2fd !important;
         z-index: 12;
         border-right: 2px solid #dee2e6;
@@ -88,13 +87,13 @@
       .table th:nth-child(6),
       .table td:nth-child(6) {
         position: sticky;
-        left: 620px; /* S.No + Client Name + PO No + Project Owner + Status width */
+        left: 620px; 
         background-color: #e3f2fd !important;
         z-index: 12;
         border-right: 2px solid #dee2e6;
         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
       }
-      /* Ensure header cells have higher z-index */
+     
       .table th:nth-child(-n+6) {
         z-index: 20;
         background-color: #2196f3 !important;
@@ -144,6 +143,19 @@
           id="navbarNav"
         >
           <ul class="navbar-nav">
+            <li class="nav-item">
+  <button class="btn btn-outline-light ms-2" id="restoreBtn">♻️ Restore Backup</button>
+</li>
+          <li class="nav-item">
+              <button
+                class="btn btn-outline-light ms-2"
+                id="backupBtn"
+                
+                aria-current="page"
+              >
+                <i class="bi bi-save-fill"></i> Backup Now
+          </button>
+            </li>
             <li class="nav-item">
               <a
                 class="btn btn-outline-light ms-2"
@@ -377,20 +389,12 @@
               td.appendChild(btn);
               table.rows[i].appendChild(td);
             }
-            // Update positions again after adding Edit column
+            
+      
             setTimeout(updateFrozenColumnPositions, 150);
           }
           
-          // --- Ensure all currency values are shown as whole numbers (no decimals) ---
-          Array.from(table.querySelectorAll('td')).forEach(td => {
-            let match = td.textContent.match(/^\$?([0-9\,]+)\.(\d+)/);
-            if (match) {
-              let num = Math.round(parseFloat(td.textContent.replace(/[^\d.]/g, '')));
-              td.textContent = (td.textContent.trim().startsWith('$') ? '$' : '') + num.toLocaleString();
-            }
-          });
-          
-          // Handle window resize
+        
           window.addEventListener('resize', updateFrozenColumnPositions);
         }
       });
@@ -411,6 +415,44 @@
           form.appendChild(hidden);
         }
       });
+       document.getElementById("backupBtn").addEventListener("click", async () => {
+    const confirmed = confirm("Run backup now?");
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("/backup-now", {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+
+      if (response.redirected) {
+        window.location.href = response.url;
+      } else {
+        const msg = await response.text();
+        alert(msg || "✅ Backup triggered.");
+      }
+    } catch (err) {
+      alert("❌ Backup failed. See console for details.");
+      console.error(err);
+    }
+  });
+   document.getElementById("restoreBtn").addEventListener("click", async () => {
+    const confirmRestore = confirm("Are you sure you want to restore the latest backup?");
+    if (!confirmRestore) return;
+
+    const res = await fetch("/restore", {
+      method: "POST",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    });
+
+    if (res.redirected) {
+      window.location.href = res.url;
+    } else {
+      alert("✅ Restore triggered.");
+    }
+  });
     </script>
   </body>
 </html>
