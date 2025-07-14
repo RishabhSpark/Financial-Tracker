@@ -3,6 +3,7 @@ import io
 import tempfile
 import numpy as np
 import pandas as pd
+import subprocess
 from PyPDF2 import PdfReader
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -654,6 +655,7 @@ def render_files_table(files):
 
 
 @app.route('/confirm_folder', methods=['POST'])
+@login_required
 def confirm_folder():
     if 'credentials' not in session:
         return '<p>Not authorized.</p>', 401
@@ -674,6 +676,7 @@ def confirm_folder():
 
 
 @app.route('/extract_text_from_drive_folder')
+@login_required
 def extract_text_from_drive_folder():
     if 'credentials' not in session:
         return redirect(url_for('authorize'))
@@ -832,6 +835,7 @@ def extract_text_from_drive_folder():
 
 
 @app.route('/edit_po/<po_id>', methods=['GET', 'POST'])
+@login_required
 def edit_po(po_id):
     if request.method == 'POST':
         # Normalize status to one of the allowed values
@@ -888,11 +892,6 @@ def edit_po(po_id):
                 })
             po_data['payment_schedule'] = schedule
         
-        # Handle PO ID change
-        # if new_po_id != po_id:
-        #     # If PO ID changed, we need to delete the old record and create a new one
-        #     delete_po_by_id(po_id)  # Delete old record
-        
         # Save changes (will create new record if PO ID changed, or update existing)
         insert_or_replace_po(po_data)
         
@@ -916,6 +915,8 @@ def edit_po(po_id):
 
 
 @app.route('/refresh_charts')
+@login_required
+
 def refresh_charts():
     # Re-run export and forecast processing
     from extractor.export import export_all_pos_json, export_all_csvs
@@ -927,6 +928,7 @@ def refresh_charts():
 
 
 @app.route('/download_xlsx')
+@login_required
 def download_xlsx():
     from extractor.export import export_all_pos_json, export_all_csvs
     from forecast_processor import run_forecast_processing
@@ -1043,6 +1045,8 @@ def generate_unconfirmed_po_id():
     return f"unconfirmed-{count + 1}"
 
 @app.route("/submit-po", methods=["POST"])
+@login_required
+
 def submit_po():
     form = request.form
     
@@ -1106,6 +1110,7 @@ def submit_po():
     insert_or_replace_po(po_dict)
     return redirect(url_for("forecast")) 
 @app.route("/delete-po/<po_id>", methods=["POST"])
+@login_required
 def delete_po(po_id):
  
     session = SessionLocal()
@@ -1140,6 +1145,36 @@ def delete_po(po_id):
     return redirect(url_for("forecast"))
 
 
+@app.route("/backup-now", methods=["POST"])
+@login_required
+def backup_now():
+   
+    try:
+         # Run the backup script
+        result = subprocess.run(
+            ["/home/fiona/Financial-Tracker/backup_and_upload.sh"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        flash("✅ Backup completed successfully.", "success")
+    except subprocess.CalledProcessError as e:
+        flash(f"❌ Backup failed: {e.stderr}", "danger")
+    return redirect(url_for("forecast"))  
+
+@app.route("/restore", methods=["POST"])
+def restore_backup():
+    try:
+        result = subprocess.run(
+            ["/home/fiona/Financial-Tracker/restore_backup.sh"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        flash("✅ Restore completed successfully.", "success")
+    except subprocess.CalledProcessError as e:
+        flash(f"❌ Restore failed:\n{e.stderr}", "danger")
+    return redirect(url_for("forecast"))
 
 if __name__ == '__main__':
     init_db()
