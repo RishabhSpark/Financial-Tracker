@@ -1,5 +1,5 @@
 #!/bin/bash
-APP_DIR="/home/fiona/Financial-Tracker"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="$APP_DIR/backups"
 TIMESTAMP=$(date +"%F_%H_%M")
 DEST="$BACKUP_DIR/backup"
@@ -16,6 +16,3 @@ cp "$APP_DIR/po_database.db" "$DEST/"
 cp -r "$APP_DIR/logs" "$DEST/" 
 
 echo "✅ Backup completed at $DEST"
-
-
-# TODO: Restore( Button on the dashboard -> Restore backup -> Fetch from server (Optional) -> Update /backups -> Update existing files)
