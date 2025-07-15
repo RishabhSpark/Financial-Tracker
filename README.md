@@ -148,20 +148,27 @@ On Windows:
 pip install -r requirements.txt
 ```
 
+
 6. Set up environment variables:
    - Create a `.env` file with user credentials and Google API keys (see `.env.example`)
 
-7. Usage
-Once the installation is complete, you can run the application.
+7. Initialize Output Files
+After activating your virtual environment and before running the app or Docker, initialize the required output files:
 
 ```
-python app.py
+python init_output_files.py
 ```
 
-8. Access the dashboard:
-   - Open [http://localhost:5000](http://localhost:5000) in your browser
+8. Docker Usage
+You can run the application using Docker Compose for a consistent environment. For a more detailed docker documentation check `DOCKER_README.md`.
 
-## Usage
+```
+docker-compose up -d --build
+```
+
+The app will be available at [http://localhost:5000](http://localhost:5000)
+
+## Website Flow
 - **Login** with your credentials
 - **Upload or sync** POs from Google Drive
 - **Edit and assign** project leads to POs
@@ -173,4 +180,10 @@ python app.py
 - `db/` - Database models and CRUD logic
 - `extractor/` - PDF extraction and processing
 - `templates/` - HTML templates (dashboard, forms, etc.)
+- `inputs/` - Some sample inputs
 - `output/` - Generated reports and data
+- `backups/` - Backups folder (in gitignore)
+- `logs/` - Detailed logs (in gitignore)
+- `.env.example` - An example of env
+- `backup_and_upload.sh` - Script for running backup
+- `restore.sh` - Script for restoring backup

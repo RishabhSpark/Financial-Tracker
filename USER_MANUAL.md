@@ -54,6 +54,26 @@ Financial Tracker is a web application for managing purchase orders, forecasting
   - Refresh the page or clear your browser cache.
   - If running locally, make sure Docker containers are running (`docker compose up -d --build`).
   - Check the logs in the `logs/` directory or via Docker Compose logs.
+
+## 10. Backups
+- Regular backups are recommended to prevent data loss.
+- You can take backups in two ways:
+  - **Via the web interface:** Use the backup/restore backup option in the dashboard(forecast/) to generate and download a backup directly from your browser.
+  - **Using provided scripts:**
+    - To create a backup, run:
+      ```bash
+      ./backup_and_upload.sh
+      ```
+      This will back up your database and upload it to your configured cloud location (if set up).
+    - To restore from a backup, run:
+      ```bash
+      ./restore_backup.sh
+      ```
+      Follow the prompts to select and restore a backup file.
+- Ensure you have the necessary permissions to execute these scripts (you may need to run `chmod +x backup_and_upload.sh restore_backup.sh`).
+- Backups are stored in the `backups/` directory by default.
+
+## 11. Troubleshooting & Support
 - For further support, contact your system administrator or refer to the project README and Docker documentation.
 
 ---
