@@ -174,6 +174,3 @@ python app.py
 - `extractor/` - PDF extraction and processing
 - `templates/` - HTML templates (dashboard, forms, etc.)
 - `output/` - Generated reports and data
-
-## License
-MIT

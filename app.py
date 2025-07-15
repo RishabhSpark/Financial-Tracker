@@ -876,14 +876,14 @@ def edit_po(po_id):
         po_data = {
             'po_id': new_po_id,
             'client_name': request.form.get('client_name'),
-            'amount': request.form.get('amount'),
+            'amount': float(request.form.get('amount')) if request.form.get('amount') else 0.0,
             'status': status,
-            'payment_terms': request.form.get('payment_terms'),
+            'payment_terms': int(request.form.get('payment_terms')) if request.form.get('payment_terms') else None,
             'payment_type': request.form.get('payment_type'),
             'start_date': request.form.get('start_date'),
             'end_date': request.form.get('end_date'),
-            'duration_months': request.form.get('duration_months'),
-            'payment_frequency': request.form.get('payment_frequency'),
+            'duration_months': int(request.form.get('duration_months')) if request.form.get('duration_months') else None,
+            'payment_frequency': int(request.form.get('payment_frequency')) if request.form.get('payment_frequency') else None,
             'project_owner': request.form.get('project_owner'),
         }
         logger.debug("PO data to update: %s", po_data)
@@ -895,13 +895,15 @@ def edit_po(po_id):
             dues = request.form.getlist('milestone_due_date')
             pers = request.form.getlist('milestone_percentage')
             for n, d, due, p in zip(names, descs, dues, pers):
-                milestones.append({
-                    'milestone_name': n,
-                    'milestone_description': d,
-                    'milestone_due_date': due,
-                    'milestone_percentage': p
-                })
+                if n and p:  # Only add milestone if name and percentage are provided
+                    milestones.append({
+                        'milestone_name': n,
+                        'milestone_description': d or None,
+                        'milestone_due_date': due or None,
+                        'milestone_percentage': float(p) if p else 0.0
+                    })
             po_data['milestones'] = milestones
+            po_data['payment_schedule'] = []  # Clear payment schedule for milestone type
             logger.info("Processed milestones for PO %s: %s", po_data['po_id'], milestones)
         elif po_data['payment_type'] == 'distributed':
             schedule = []
@@ -909,17 +911,24 @@ def edit_po(po_id):
             amounts = request.form.getlist('payment_amount')
             descs = request.form.getlist('payment_description')
             for dt, amt, desc in zip(dates, amounts, descs):
-                schedule.append({
-                    'payment_date': dt,
-                    'payment_amount': amt,
-                    'payment_description': desc
-                })
+                if dt and amt:  # Only add payment if date and amount are provided
+                    schedule.append({
+                        'payment_date': dt,
+                        'payment_amount': float(amt) if amt else 0.0,
+                        'payment_description': desc or None
+                    })
             po_data['payment_schedule'] = schedule
+            po_data['milestones'] = []  # Clear milestones for distributed type
             logger.info("Processed distributed payment schedule for PO %s: %s", po_data['po_id'], schedule)
+        else:  # periodic payment type
+            po_data['milestones'] = []  # Clear milestones for periodic type
+            po_data['payment_schedule'] = []  # Clear payment schedule for periodic type
+            logger.info("Processed periodic payment type for PO %s", po_data['po_id'])
         # Save changes (will create new record if PO ID changed, or update existing)
         try:
             insert_or_replace_po(po_data)
             logger.info("Inserted/updated PO in database: %s (user: %s)", po_data['po_id'], session.get('username'))
+            flash(f"Purchase Order '{po_data['po_id']}' updated successfully!", "success")
         except Exception as e:
             logger.error("Error inserting PO into database for user %s: %s", session.get('username'), e, exc_info=True)
             flash("Error saving purchase order.", "danger")

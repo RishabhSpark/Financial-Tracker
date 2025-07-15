@@ -42,6 +42,7 @@
                 <label for="payment_terms" class="form-label">Payment Terms:</label>
                 <input type="number" class="form-control" id="payment_terms" name="payment_terms" value="{{ po['payment_terms'] }}">
             </div>
+
             <div class="mb-3">
                 <label for="payment_type" class="form-label">Payment Schedule:</label>
                 <select class="form-select" id="payment_type" name="payment_type">
@@ -63,35 +64,34 @@
                 <input type="number" class="form-control" id="duration_months" name="duration_months" value="{{ po['duration_months'] }}">
             </div>
 
-            {% if po['payment_type'] == 'periodic' %}
-            <div class="mb-3 payment-frequency">
+            <!-- Always render all payment-type-specific fields, hide/show with JS -->
+            <div class="mb-3 payment-frequency" style="display: none;">
                 <label for="payment_frequency" class="form-label">Payment Frequency:</label>
-                <input type="number" class="form-control" id="payment_frequency" name="payment_frequency" value="{{ po['payment_frequency'] }}">
+                <input type="number" class="form-control" id="payment_frequency" name="payment_frequency" value="{{ po['payment_frequency'] if po['payment_type'] == 'periodic' else '' }}">
             </div>
-            {% endif %}
 
-            {% if po['payment_type'] == 'milestone' %}
-            <div class="mb-3 milestone-fields">
+            <div class="mb-3 milestone-fields" style="display: none;">
                 <label class="form-label">Milestones:</label>
                 <div id="milestones-list">
+                    {% if po['milestones'] %}
                     {% for ms in po['milestones'] %}
                     <div class="milestone-entry">
                         <input type="text" class="form-control" name="milestone_name" placeholder="Name" value="{{ ms['milestone_name'] }}" required>
                         <input type="text" class="form-control" name="milestone_description" placeholder="Description" value="{{ ms['milestone_description'] }}">
-                        <input type="text" class="form-control" name="milestone_due_date" placeholder="Invoice Date" value="{{ ms['milestone_due_date'] }}">
+                        <input type="text" class="form-control" name="milestone_due_date" placeholder="Invoice Date (DD-MM-YYYY)" value="{{ ms['milestone_due_date'] }}">
                         <input type="number" step="0.01" class="form-control" name="milestone_percentage" placeholder="%" value="{{ ms['milestone_percentage'] }}" required>
                         <button type="button" class="btn btn-danger" onclick="removeMilestone(this)">Remove</button>
                     </div>
                     {% endfor %}
+                    {% endif %}
                 </div>
                 <button type="button" class="btn btn-secondary mt-2" onclick="addMilestone()">Add Milestone</button>
             </div>
-            {% endif %}
 
-            {% if po['payment_type'] == 'distributed' %}
-            <div class="mb-3 schedule-fields">
+            <div class="mb-3 schedule-fields" style="display: none;">
                 <label class="form-label">Payment Schedule:</label>
                 <div id="schedule-list">
+                    {% if po['payment_schedule'] %}
                     {% for sched in po['payment_schedule'] %}
                     <div class="schedule-entry">
                         <input type="text" class="form-control" name="payment_date" placeholder="Date (DD-MM-YYYY)" value="{{ sched['payment_date'] }}" required>
@@ -100,10 +100,10 @@
                         <button type="button" class="btn btn-danger" onclick="removeSchedule(this)">Remove</button>
                     </div>
                     {% endfor %}
+                    {% endif %}
                 </div>
                 <button type="button" class="btn btn-secondary mt-2" onclick="addSchedule()">Add Payment</button>
             </div>
-            {% endif %}
 
             <div class="mb-3">
                 <label for="project_owner" class="form-label">Project Owner:</label>
@@ -130,13 +130,10 @@
 
             function togglePaymentFields() {
                 const value = paymentTypeSelect.value;
-
-                // Hide all relevant sections initially
                 if (milestoneFields) milestoneFields.style.display = 'none';
                 if (scheduleFields) scheduleFields.style.display = 'none';
                 if (paymentFrequencyField) paymentFrequencyField.style.display = 'none';
 
-                // Show only the relevant section based on the selected value
                 if (value === 'milestone' && milestoneFields) {
                     milestoneFields.style.display = 'block';
                 } else if (value === 'distributed' && scheduleFields) {
@@ -156,11 +153,11 @@
         function addMilestone() {
             const container = document.getElementById('milestones-list');
             const div = document.createElement('div');
-            div.className = 'milestone-entry'; // Bootstrap's flex utilities will be applied via this class
+            div.className = 'milestone-entry';
             div.innerHTML = `
                 <input type="text" class="form-control" name="milestone_name" placeholder="Name" required>
                 <input type="text" class="form-control" name="milestone_description" placeholder="Description">
-                <input type="text" class="form-control" name="milestone_due_date" placeholder="Invoice Date">
+                <input type="text" class="form-control" name="milestone_due_date" placeholder="Invoice Date (DD-MM-YYYY)">
                 <input type="number" step="0.01" class="form-control" name="milestone_percentage" placeholder="%" required>
                 <button type="button" class="btn btn-danger" onclick="removeMilestone(this)">Remove</button>
             `;
@@ -174,7 +171,7 @@
         function addSchedule() {
             const container = document.getElementById('schedule-list');
             const div = document.createElement('div');
-            div.className = 'schedule-entry'; // Bootstrap's flex utilities will be applied via this class
+            div.className = 'schedule-entry';
             div.innerHTML = `
                 <input type="text" class="form-control" name="payment_date" placeholder="Date (DD-MM-YYYY)" required>
                 <input type="number" step="0.01" class="form-control" name="payment_amount" placeholder="Amount (USD)" required>
