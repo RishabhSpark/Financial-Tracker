@@ -30,6 +30,7 @@
                 <label for="amount" class="form-label">Amount:</label>
                 <input type="number" step="0.01" class="form-control" id="amount" name="amount" value="{{ po['amount'] }}" required>
             </div>
+
             <div class="mb-3">
                 <label for="status" class="form-label">Status:</label>
                 <select class="form-select" id="status" name="status" required>
@@ -120,7 +121,8 @@
        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eOzrKbFNty1Q" crossorigin="anonymous"></script>
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const paymentTypeSelect = document.getElementById('payment_type');
