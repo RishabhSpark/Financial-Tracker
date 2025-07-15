@@ -36,7 +36,6 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 CLIENT_SECRETS_FILE = 'client_secret.json'
 
-
 USERS = {}
 for i in range(1, 10):
     username = os.getenv(f'USER_{i}_NAME')
