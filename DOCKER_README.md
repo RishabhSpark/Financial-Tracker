@@ -1,6 +1,18 @@
+
 # Docker Usage
 
 You can run Financial Tracker using Docker for easy deployment and environment consistency.
+
+## DockerHub Image
+
+You can also pull and run the pre-built image from DockerHub:
+
+```
+docker pull fiona579/financial-tracker-forecast-app
+```
+
+See [fiona579/financial-tracker-forecast-app](https://hub.docker.com/r/fiona579/financial-tracker-forecast-app) for details.
+
 ## 1. Build using Docker Compose
 
 Build and start all services in the background:
