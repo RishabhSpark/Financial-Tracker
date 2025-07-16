@@ -1,8 +1,6 @@
-import os
-import csv # Not directly used in the provided snippet, but kept for context if it's used elsewhere
 import json
 from pathlib import Path
-import openpyxl # Import here as it's always needed for xlsx type
+import openpyxl
 from db.database import init_db as original_init_db
 from typing import Literal
 

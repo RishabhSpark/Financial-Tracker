@@ -11,10 +11,7 @@ services:
       - .env
     volumes:
       - ./client_secret.json:/app/client_secret.json
-      # - ./po_database.db:/app/po_database.db
       - ./output:/app/output
-      # - ./forecast_output.csv:/app/forecast_output.csv
-      # - ./forecast_pivot.xlsx:/app/forecast_pivot.xlsx
       - ./logs:/app/logs
       - ./backups:/app/backups
     logging:
