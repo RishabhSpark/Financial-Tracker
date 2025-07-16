@@ -4,16 +4,19 @@ import tempfile
 import numpy as np
 import pandas as pd
 import subprocess
+from extractor.run_extraction import run_pipeline
+from functools import wraps
+from pathlib import Path
 from PyPDF2 import PdfReader
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
-from extractor.run_extraction import run_pipeline
-from functools import wraps
+from forecast_processor import run_forecast_processing, LLM_OUTPUT_DIR, PROCESSED_OUTPUT_DIR
+
 from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
 from db.database import init_db, PurchaseOrder, SessionLocal, PaymentSchedule, Milestone
-from flask import Flask, request, redirect, session, url_for, render_template,  send_file, render_template_string, jsonify, flash, g
+from flask import Flask, request, redirect, session, url_for, render_template,  send_file, flash, g
 from extractor.pdf_processing.extract_blocks import extract_blocks
 from extractor.pdf_processing.extract_tables import extract_tables
 from extractor.pdf_processing.format_po import format_po_for_llm
@@ -35,6 +38,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 CLIENT_SECRETS_FILE = 'client_secret.json'
+
 
 USERS = {}
 for i in range(1, 10):
@@ -66,6 +70,7 @@ def load_logged_in_user():
     if 'username' in session:
         g.user = session['username']
     logger.info("User %s is accessing %s", g.user, request.path)
+
 
 @app.route('/add_client', methods=['GET', 'POST'])
 def add_unconfirmed_order():
@@ -149,7 +154,7 @@ def add_unconfirmed_order():
             from forecast_processor import run_forecast_processing
             export_all_pos_json()
             export_all_csvs()
-            run_forecast_processing(input_json_path="./output/purchase_orders.json")
+            run_forecast_processing(input_json_path=LLM_OUTPUT_DIR / "purchase_orders.json")
             logger.info("Exported all POs and ran forecast processing after PO insert (PO: %s, user: %s)", po_dict["po_id"], g.user)
         except Exception as e:
             logger.error("Error exporting or running forecast processing for PO %s by user %s: %s", po_dict["po_id"], g.user, e, exc_info=True)
@@ -326,7 +331,7 @@ def forecast():
 
     df = None
     try:
-        df = pd.read_csv("forecast_output.csv")
+        df = pd.read_csv("output/processed/forecast_output.csv")
         if 'Inflow (USD)' in df.columns:
             df['Inflow (USD)'] = pd.to_numeric(
                 df['Inflow (USD)'], errors='coerce').fillna(0.0)
@@ -394,7 +399,7 @@ def generate_pivot_table_html(df=None):
         logger.info("Generating pivot table HTML.")
         if df is None:
             logger.debug("No DataFrame provided, loading 'forecast_output.csv'.")
-            df = pd.read_csv("forecast_output.csv")
+            df = pd.read_csv("./output/processed/forecast_output.csv")
 
         # Ensure 'Inflow (USD)' is numeric and NaNs are 0.0.
         if 'Inflow (USD)' in df.columns:
@@ -839,8 +844,7 @@ def extract_text_from_drive_folder():
     export_all_csvs()
     logger.info("Data Export Complete.")
     logger.info("Generating Financial Forecast...")
-    from forecast_processor import run_forecast_processing
-    run_forecast_processing(input_json_path="./output/purchase_orders.json")
+    run_forecast_processing(input_json_path=LLM_OUTPUT_DIR / "purchase_orders.json",)
     logger.info("Financial Forecast Generation Complete.")
     logger.info("All processes finished successfully!")
 
@@ -938,7 +942,7 @@ def edit_po(po_id):
         try:
             export_all_pos_json()
             export_all_csvs()
-            run_forecast_processing(input_json_path="./output/purchase_orders.json")
+            run_forecast_processing(input_json_path=LLM_OUTPUT_DIR / "purchase_orders.json",)
             logger.info("Exported all POs and ran forecast processing after PO edit (PO: %s, user: %s)", po_data['po_id'], session.get('username'))
         except Exception as e:
             logger.error("Warning: Could not regenerate forecast files after PO edit for PO %s by user %s: %s", po_data['po_id'], session.get('username'), e, exc_info=True)
@@ -963,7 +967,7 @@ def refresh_charts():
         export_all_pos_json()
         export_all_csvs()
         logger.debug("Running forecast processing...")
-        run_forecast_processing(input_json_path="./output/purchase_orders.json")
+        run_forecast_processing(input_json_path=LLM_OUTPUT_DIR / "purchase_orders.json",)
         logger.info("Successfully refreshed charts and forecast for user '%s'.", session.get('username'))
     except Exception as e:
         logger.error("Error refreshing charts/forecast for user '%s': %s", session.get('username'), e, exc_info=True)
@@ -982,8 +986,8 @@ def download_xlsx():
         export_all_pos_json()
         export_all_csvs()
         logger.debug("Running forecast processing before XLSX download...")
-        run_forecast_processing(input_json_path="./output/purchase_orders.json")
-        xlsx_path = os.path.abspath("forecast_pivot.xlsx")
+        run_forecast_processing(input_json_path=LLM_OUTPUT_DIR / "purchase_orders.json",)
+        xlsx_path = os.path.abspath("./output/processed/forecast_pivot.xlsx")
         logger.info("Sending file '%s' to user '%s' as attachment.", xlsx_path, session.get('username'))
         return send_file(xlsx_path, as_attachment=True, download_name="forecast_pivot.xlsx")
     except Exception as e:
@@ -1109,7 +1113,7 @@ def drive_folder_upload():
                         export_all_pos_json()
                         export_all_csvs()
                         logger.info("Running forecast processing after LLM extraction...")
-                        run_forecast_processing(input_json_path="./output/purchase_orders.json")
+                        run_forecast_processing(input_json_path=LLM_OUTPUT_DIR / "purchase_orders.json",)
                         logger.info("LLM extraction and forecast processing complete for folder '%s' (ID: %s)", folder_metadata.get('name'), folder_id)
                         llm_summary = extracted_texts_summary
             except Exception as e:

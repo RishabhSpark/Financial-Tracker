@@ -4,11 +4,17 @@ import pandas as pd
 from sqlalchemy import create_engine
 from db.database import PurchaseOrder, SessionLocal
 from app.core.logger import setup_logger
+from pathlib import Path # Import Path for robust path handling
+from db.database import DB_URL, DATABASE_DIR 
 
 logger = setup_logger()
 
-def export_all_pos_json(output_path="output/purchase_orders.json"):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+BASE_OUTPUT_DIR = Path('output')
+LLM_OUTPUT_DIR = BASE_OUTPUT_DIR / "LLM output"
+PROCESSED_OUTPUT_DIR = BASE_OUTPUT_DIR / "processed" 
+
+def export_all_pos_json(output_path: Path = LLM_OUTPUT_DIR / "purchase_orders.json")-> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     session = SessionLocal()
     logger.info("Starting export of all purchase orders to JSON.")
     
@@ -70,9 +76,9 @@ def export_all_pos_json(output_path="output/purchase_orders.json"):
     logger.info(f"Exported {len(export_data)} purchase orders with nested data to {output_path}")
     
 
-def export_all_csvs(output_dir="output/"):
-    os.makedirs(output_dir, exist_ok=True)
-    engine = create_engine("sqlite:///po_database.db")
+def export_all_csvs(output_dir: Path = LLM_OUTPUT_DIR) -> None:    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(DB_URL)
 
     logger.info("Starting export of all tables to CSV files.")
     

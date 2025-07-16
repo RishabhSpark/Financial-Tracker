@@ -2,12 +2,19 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 import os
+from pathlib import Path
 
-Base = declarative_base()
-DATABASE_URL = "sqlite:///po_database.db"
 
-engine = create_engine(DATABASE_URL, echo=True)
+
+BASE_OUTPUT_DIR = Path('output')
+DATABASE_DIR = BASE_OUTPUT_DIR / "database"
+DB_FILE_PATH = DATABASE_DIR / "po_database.db"
+# DATABASE_URL = "sqlite:///po_database.db"
+DB_URL = f"sqlite:///{DB_FILE_PATH.resolve()}" # Use .resolve() for absolute path in URL
+
+engine = create_engine(DB_URL, echo=True)
 SessionLocal = sessionmaker(bind=engine)
+Base = declarative_base()
 
 class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
@@ -52,5 +59,10 @@ class DriveFile(Base):
     last_edited = Column(DateTime, nullable=True) # Using DateTime for last_edited
 
 def init_db():
-    if not os.path.exists("po_database.db"):
+    DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not DB_FILE_PATH.exists():
+        print(f"Creating database at: {DB_FILE_PATH}") 
         Base.metadata.create_all(bind=engine)
+    else:
+        print(f"Database already exists at: {DB_FILE_PATH}")
