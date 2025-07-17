@@ -12,6 +12,8 @@ __pycache__/
 input/POs/
 logs/*.log
 .env.example
+venv/
+input/
 
 # Data files (mounted as volumes)
 *.db
