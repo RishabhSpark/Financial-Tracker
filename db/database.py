@@ -1,16 +1,16 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
-import os
 from pathlib import Path
+from app.core.logger import setup_logger
 
-
+logger = setup_logger()
 
 BASE_OUTPUT_DIR = Path('output')
 DATABASE_DIR = BASE_OUTPUT_DIR / "database"
 DB_FILE_PATH = DATABASE_DIR / "po_database.db"
 # DATABASE_URL = "sqlite:///po_database.db"
-DB_URL = f"sqlite:///{DB_FILE_PATH.resolve()}" # Use .resolve() for absolute path in URL
+DB_URL = f"sqlite:///{DB_FILE_PATH.resolve()}"
 
 engine = create_engine(DB_URL, echo=True)
 SessionLocal = sessionmaker(bind=engine)
@@ -54,15 +54,15 @@ class PaymentSchedule(Base):
 
 class DriveFile(Base):
     __tablename__ = "drive_files"
-    id = Column(String, primary_key=True)  # Google Drive File ID
-    name = Column(String, index=True) # Indexing name can be useful for lookups
-    last_edited = Column(DateTime, nullable=True) # Using DateTime for last_edited
+    id = Column(String, primary_key=True)
+    name = Column(String, index=True)
+    last_edited = Column(DateTime, nullable=True)
 
 def init_db():
     DATABASE_DIR.mkdir(parents=True, exist_ok=True)
 
     if not DB_FILE_PATH.exists():
-        print(f"Creating database at: {DB_FILE_PATH}") 
+        logger.info(f"Creating database at: {DB_FILE_PATH}")
         Base.metadata.create_all(bind=engine)
     else:
-        print(f"Database already exists at: {DB_FILE_PATH}")
+        logger.info(f"Database already exists at: {DB_FILE_PATH}")

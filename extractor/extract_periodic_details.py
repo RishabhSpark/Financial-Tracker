@@ -1,4 +1,3 @@
-import os
 from dotenv import load_dotenv
 from app.core.logger import setup_logger
 from extractor.llm_client import get_llm, get_prompt, get_json_parser
