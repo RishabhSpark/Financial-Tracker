@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-APP_DIR="/home/fiona/Financial-Tracker"
+APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 BACKUP_DIR_SOURCE="$APP_DIR/backups/backup" 
 
 BACKUP_DB_FILE="$BACKUP_DIR_SOURCE/output/database/po_database.db"

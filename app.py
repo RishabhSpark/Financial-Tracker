@@ -13,7 +13,6 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaIoBaseDownload
 from forecast_processor import run_forecast_processing, LLM_OUTPUT_DIR, PROCESSED_OUTPUT_DIR
-
 from db.crud import insert_or_replace_po, upsert_drive_files_sqlalchemy, get_all_drive_files, delete_po_by_drive_file_id, get_po_with_schedule
 from db.database import init_db, PurchaseOrder, SessionLocal, PaymentSchedule, Milestone
 from flask import Flask, request, redirect, session, url_for, render_template,  send_file, flash, g
@@ -26,10 +25,18 @@ from dotenv import load_dotenv
 from app.core.logger import setup_logger
 
 logger = setup_logger()
-
+DOTENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
+print(f"DEBUG: Looking for .env file at: {DOTENV_PATH}")
+load_success = load_dotenv(dotenv_path=DOTENV_PATH, verbose=True, override=True)
+print(f"DEBUG: load_dotenv() successful: {load_success}")
 load_dotenv()
 logger.info("Loaded environment variables from .env file.")
-
+test_password_var = os.getenv("USER_2_PASSWORD")
+print(f"DEBUG: USER_2_PASSWORD directly after load_dotenv: '{test_password_var}'")
+if test_password_var is None:
+    print("DEBUG: USER_2_PASSWORD is None, load_dotenv might have failed for this variable.")
+elif not test_password_var.strip():
+     print("DEBUG: USER_2_PASSWORD is empty or just whitespace.")
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'supersecret123')
 app.config['SESSION_COOKIE_SECURE'] = True
